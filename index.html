@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GPTKQuiz — University Examination Portal</title>
+  <title>GPTKQuiz — University Portal</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Arima:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -12,216 +12,349 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
       font-family: 'Arima', system-ui, sans-serif;
-      background: #0d0d0d;
-      color: #ececec;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
+      background: #0a0a0f;
+      overflow: hidden;
       -webkit-font-smoothing: antialiased;
     }
-    body::before {
-      content: '';
+
+    /* ── Animated mesh background ── */
+    .bg {
       position: fixed;
       inset: 0;
-      background:
-        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(99,102,241,0.13) 0%, transparent 70%),
-        radial-gradient(ellipse 60% 50% at 80% 80%, rgba(168,85,247,0.10) 0%, transparent 70%);
-      pointer-events: none;
       z-index: 0;
+      background:
+        radial-gradient(ellipse 90% 70% at 15% 5%,  rgba(120,80,255,0.18) 0%, transparent 65%),
+        radial-gradient(ellipse 70% 60% at 85% 90%, rgba(60,170,255,0.14) 0%, transparent 65%),
+        radial-gradient(ellipse 50% 40% at 50% 50%, rgba(255,80,160,0.07) 0%, transparent 70%);
     }
-    .auth-card {
+
+    /* subtle grid */
+    .bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 44px 44px;
+    }
+
+    /* ── Slide wrapper ── */
+    .slide-outer {
       position: relative;
       z-index: 1;
-      background: #111;
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 18px;
-      padding: 48px 44px;
-      width: 100%;
-      max-width: 400px;
-      box-shadow: 0 28px 80px rgba(0,0,0,0.65);
-      animation: cardIn 0.35s cubic-bezier(0.16,1,0.3,1) both;
+      width: 420px;
+      overflow: hidden;   /* clip the sliding panels */
     }
-    @keyframes cardIn {
-      from { opacity:0; transform:translateY(18px); }
+
+    /* inner track holds [login | signup] side by side */
+    .slide-track {
+      display: flex;
+      transition: transform 0.5s cubic-bezier(0.77,0,0.18,1);
+      will-change: transform;
+    }
+    .slide-track.show-signup { transform: translateX(-50%); }
+
+    /* each panel = 50% of track (track is 200% wide) */
+    .slide-panel {
+      width: 50%;
+      flex-shrink: 0;
+      padding: 4px;        /* so box-shadow doesn't clip */
+    }
+
+    /* ── Glass card ── */
+    .card {
+      background: rgba(255,255,255,0.04);
+      backdrop-filter: blur(24px) saturate(160%);
+      -webkit-backdrop-filter: blur(24px) saturate(160%);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 20px;
+      padding: 44px 40px;
+      box-shadow: 0 8px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.07);
+      color: #e8e8f0;
+      animation: fadeUp 0.45s cubic-bezier(0.16,1,0.3,1) both;
+    }
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(20px); }
       to   { opacity:1; transform:translateY(0); }
     }
+
+    /* ── Brand ── */
     .brand {
       display: flex;
       align-items: center;
       gap: 10px;
-      margin-bottom: 32px;
+      margin-bottom: 30px;
     }
     .brand-icon {
-      width: 36px; height: 36px;
-      background: linear-gradient(135deg,#6366f1,#a855f7);
-      border-radius: 10px;
+      width: 34px; height: 34px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 9px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 18px;
+      font-size: 17px;
     }
-    .brand-name { font-size: 22px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
-    .auth-title { font-size: 26px; font-weight: 700; color: #fff; margin-bottom: 6px; letter-spacing: -0.5px; }
-    .auth-sub   { font-size: 14px; color: #888; margin-bottom: 28px; }
-    .tab-row {
+    .brand-name {
+      font-size: 20px; font-weight: 700;
+      color: rgba(255,255,255,0.92);
+      letter-spacing: -0.3px;
+    }
+
+    /* ── Headings ── */
+    .title { font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 5px; letter-spacing: -0.4px; }
+    .sub   { font-size: 13px; color: rgba(255,255,255,0.4); margin-bottom: 26px; }
+
+    /* ── Tab ── */
+    .tabs {
       display: flex;
-      background: #1a1a1a;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.07);
       border-radius: 10px;
-      padding: 4px;
-      margin-bottom: 26px;
-      gap: 4px;
+      padding: 3px;
+      margin-bottom: 24px;
+      gap: 3px;
     }
-    .tab-btn {
-      flex: 1; padding: 9px;
+    .tab {
+      flex: 1; padding: 9px 0;
       border: none; border-radius: 8px;
-      cursor: pointer;
       font-family: 'Arima', sans-serif;
-      font-size: 14px; font-weight: 600;
-      transition: all 0.18s;
-      background: transparent; color: #888;
+      font-size: 13px; font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: transparent;
+      color: rgba(255,255,255,0.35);
     }
-    .tab-btn.active { background: #222; color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.45); }
-    .google-btn {
+    .tab.on {
+      background: rgba(255,255,255,0.09);
+      color: rgba(255,255,255,0.92);
+      box-shadow: 0 1px 6px rgba(0,0,0,0.35);
+    }
+
+    /* ── Google button ── */
+    .g-btn {
       width: 100%;
-      display: flex; align-items: center; justify-content: center; gap: 12px;
-      padding: 13px 20px;
-      background: #fff; color: #1a1a1a;
+      display: flex; align-items: center; justify-content: center; gap: 11px;
+      padding: 12px 18px;
+      background: #fff;
+      color: #1a1a1a;
       border: none; border-radius: 10px;
       font-family: 'Arima', sans-serif;
-      font-size: 15px; font-weight: 600;
+      font-size: 14px; font-weight: 600;
       cursor: pointer;
       transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-      margin-bottom: 22px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      margin-bottom: 20px;
     }
-    .google-btn:hover { background: #f1f1f1; box-shadow: 0 4px 18px rgba(0,0,0,0.4); transform: translateY(-1px); }
-    .google-btn:active { transform: translateY(0); }
+    .g-btn:hover { background: #f0f0f0; transform: translateY(-1px); box-shadow: 0 4px 18px rgba(0,0,0,0.4); }
+    .g-btn:active { transform: translateY(0); }
+
+    /* ── Divider ── */
     .divider {
-      display: flex; align-items: center; gap: 12px;
-      margin-bottom: 22px; color: #444; font-size: 13px;
+      display: flex; align-items: center; gap: 11px;
+      margin-bottom: 20px;
+      color: rgba(255,255,255,0.2);
+      font-size: 12px;
     }
-    .divider::before, .divider::after { content:''; flex:1; height:1px; background:#222; }
-    .input-group { margin-bottom: 14px; }
-    .input-label { display:block; font-size:13px; font-weight:600; color:#aaa; margin-bottom:7px; }
-    .input-field {
-      width: 100%; padding: 12px 14px;
-      background: #1a1a1a; border: 1px solid #2a2a2a;
-      border-radius: 10px; color: #fff;
-      font-family: 'Arima', sans-serif; font-size: 14px;
-      outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
+    .divider::before, .divider::after {
+      content: ''; flex: 1; height: 1px;
+      background: rgba(255,255,255,0.08);
     }
-    .input-field:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
-    .input-field::placeholder { color: #555; }
-    .password-wrap { position: relative; }
-    .eye-btn {
-      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-      background: none; border: none; cursor: pointer; font-size: 16px; color: #666;
+
+    /* ── Inputs ── */
+    .field { margin-bottom: 13px; }
+    .label {
+      display: block; font-size: 12px; font-weight: 600;
+      color: rgba(255,255,255,0.45); margin-bottom: 6px;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .input {
+      width: 100%; padding: 11px 14px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 10px;
+      color: rgba(255,255,255,0.90);
       font-family: 'Arima', sans-serif;
+      font-size: 14px; outline: none;
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
     }
-    .pw-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:7px; }
-    .forgot { font-size:13px; color:#6366f1; cursor:pointer; background:none; border:none; font-family:'Arima',sans-serif; }
-    .forgot:hover { text-decoration:underline; }
-    .primary-btn {
-      width: 100%; padding: 13px;
-      background: linear-gradient(135deg,#6366f1,#a855f7);
-      color: #fff; border: none; border-radius: 10px;
-      font-family: 'Arima', sans-serif; font-size: 15px; font-weight: 700;
+    .input:focus {
+      border-color: rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.08);
+      box-shadow: 0 0 0 3px rgba(255,255,255,0.05);
+    }
+    .input::placeholder { color: rgba(255,255,255,0.22); }
+    .input[readonly]    { opacity: 0.5; cursor: default; }
+
+    /* password wrapper */
+    .pw-wrap { position: relative; }
+    .eye {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer;
+      font-size: 15px; color: rgba(255,255,255,0.3);
+      font-family: 'Arima', sans-serif;
+      transition: color 0.15s;
+    }
+    .eye:hover { color: rgba(255,255,255,0.6); }
+
+    /* pw row */
+    .pw-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+    .forgot {
+      font-size: 12px; color: rgba(255,255,255,0.38);
+      background: none; border: none; cursor: pointer;
+      font-family: 'Arima', sans-serif;
+      transition: color 0.15s;
+    }
+    .forgot:hover { color: rgba(255,255,255,0.75); }
+
+    /* ── Primary button ── */
+    .btn {
+      width: 100%; padding: 12px;
+      background: rgba(255,255,255,0.92);
+      color: #0a0a0f;
+      border: none; border-radius: 10px;
+      font-family: 'Arima', sans-serif;
+      font-size: 15px; font-weight: 700;
       cursor: pointer; margin-top: 6px;
-      transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
-      box-shadow: 0 4px 20px rgba(99,102,241,0.35);
+      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
     }
-    .primary-btn:hover { opacity:0.92; transform:translateY(-1px); box-shadow:0 6px 26px rgba(99,102,241,0.45); }
-    .primary-btn:active { transform:translateY(0); }
-    .primary-btn:disabled { opacity:0.45; cursor:not-allowed; transform:none; }
-    .footer-note { text-align:center; font-size:12px; color:#555; margin-top:18px; line-height:1.7; }
-    .footer-note a { color:#6366f1; text-decoration:none; }
-    .footer-note a:hover { text-decoration:underline; }
-    .alert { padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
-    .alert-error   { background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); color:#f87171; }
-    .alert-success { background:rgba(34,197,94,0.10); border:1px solid rgba(34,197,94,0.25); color:#4ade80; }
-    .welcome-avatar {
-      width:68px; height:68px; border-radius:50%; object-fit:cover;
-      border:3px solid #6366f1; display:block; margin:0 auto 14px;
+    .btn:hover { background: #fff; transform: translateY(-1px); box-shadow: 0 6px 26px rgba(0,0,0,0.35); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* ── Alerts ── */
+    .alert {
+      padding: 10px 13px; border-radius: 9px;
+      font-size: 13px; margin-bottom: 15px;
+      display: flex; align-items: center; gap: 8px;
+      backdrop-filter: blur(8px);
     }
-    .welcome-avatar-ph {
-      width:68px; height:68px; border-radius:50%;
-      background:linear-gradient(135deg,#6366f1,#a855f7);
-      display:flex; align-items:center; justify-content:center;
-      font-size:30px; margin:0 auto 14px;
-      border:3px solid rgba(99,102,241,0.4);
+    .err { background: rgba(239,68,68,0.10); border: 1px solid rgba(239,68,68,0.25); color: #fca5a5; }
+    .suc { background: rgba(34,197,94,0.10); border: 1px solid rgba(34,197,94,0.20); color: #86efac; }
+
+    /* ── Footer note ── */
+    .note {
+      text-align: center; font-size: 12px;
+      color: rgba(255,255,255,0.3); margin-top: 16px;
+      line-height: 1.7;
     }
-    .welcome-name  { text-align:center; font-size:20px; font-weight:700; color:#fff; margin-bottom:4px; }
-    .welcome-email { text-align:center; font-size:13px; color:#888; margin-bottom:22px; }
-    .role-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
+    .note a { color: rgba(255,255,255,0.6); text-decoration: none; }
+    .note a:hover { color: rgba(255,255,255,0.95); text-decoration: underline; }
+
+    /* ── Spinner ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin {
+      width:16px; height:16px;
+      border: 2px solid rgba(0,0,0,0.2);
+      border-top-color: #111;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: inline-block;
+    }
+
+    /* ── Role cards ── */
+    .role-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px; }
     .role-card {
-      padding:18px 12px; background:#1a1a1a;
-      border:2px solid #2a2a2a; border-radius:12px;
-      cursor:pointer; text-align:center;
-      transition:border-color 0.2s, background 0.2s;
+      padding: 18px 10px;
+      background: rgba(255,255,255,0.04);
+      border: 1.5px solid rgba(255,255,255,0.08);
+      border-radius: 12px; cursor: pointer;
+      text-align: center;
+      transition: border-color 0.2s, background 0.2s, transform 0.15s;
     }
-    .role-card:hover { border-color:#6366f1; background:rgba(99,102,241,0.06); }
-    .role-card.selected { border-color:#6366f1; background:rgba(99,102,241,0.12); }
-    .role-icon { font-size:28px; margin-bottom:6px; }
-    .role-label { font-size:14px; font-weight:600; color:#ddd; }
-    @keyframes spin { to { transform:rotate(360deg); } }
-    .spinner {
-      width:18px; height:18px;
-      border:2px solid rgba(255,255,255,0.3);
-      border-top-color:#fff; border-radius:50%;
-      animation:spin 0.7s linear infinite;
-      display:inline-block;
+    .role-card:hover { border-color: rgba(255,255,255,0.25); transform: translateY(-2px); }
+    .role-card.sel   { border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.08); }
+    .role-icon  { font-size:26px; margin-bottom:6px; }
+    .role-label { font-size:13px; font-weight:600; color:rgba(255,255,255,0.75); }
+
+    /* ── Avatar ── */
+    .avi {
+      width:64px; height:64px; border-radius:50%; object-fit:cover;
+      border:2px solid rgba(255,255,255,0.2);
+      display:block; margin:0 auto 14px;
     }
-    .logout-btn {
-      background:transparent; border:1px solid #2a2a2a;
-      border-radius:8px; color:#888; padding:6px 14px;
-      cursor:pointer; font-family:'Arima',sans-serif; font-size:13px;
+    .avi-ph {
+      width:64px; height:64px; border-radius:50%;
+      background:rgba(255,255,255,0.07);
+      border:2px solid rgba(255,255,255,0.15);
+      display:flex; align-items:center; justify-content:center;
+      font-size:26px; margin:0 auto 14px;
     }
-    .logout-btn:hover { border-color:#444; color:#ccc; }
+    .w-name  { text-align:center; font-size:19px; font-weight:700; color:#fff; margin-bottom:4px; }
+    .w-email { text-align:center; font-size:13px; color:rgba(255,255,255,0.4); margin-bottom:22px; }
+
+    /* ── Info box ── */
     .info-box {
-      background:#1a1a1a; border:1px solid #2a2a2a;
-      border-radius:12px; padding:16px 20px; margin-top:18px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px; padding:15px 18px; margin-top:16px;
     }
-    .info-key { font-size:12px; color:#666; margin-bottom:5px; }
-    .info-val { font-size:16px; font-weight:700; color:#fff; letter-spacing:1px; }
-    .info-sub { font-size:13px; color:#888; margin-top:3px; }
-    .dash-box {
-      margin-top:14px; padding:14px 20px;
-      border-radius:12px; font-size:14px; color:#aaa; text-align:center;
+    .info-key { font-size:11px; color:rgba(255,255,255,0.35); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:5px; }
+    .info-val { font-size:16px; font-weight:700; color:#fff; letter-spacing:1.5px; }
+    .info-sub { font-size:13px; color:rgba(255,255,255,0.4); margin-top:3px; }
+
+    /* ── Logout ── */
+    .logout {
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:8px; color:rgba(255,255,255,0.5);
+      padding:6px 13px; cursor:pointer;
+      font-family:'Arima',sans-serif; font-size:13px;
+      transition:all 0.15s;
     }
-    @media(max-width:480px) { .auth-card { padding:36px 22px; margin:16px; } }
+    .logout:hover { border-color:rgba(255,255,255,0.2); color:rgba(255,255,255,0.85); }
+
+    /* ── Dash placeholder ── */
+    .dash {
+      margin-top:14px; padding:14px 18px;
+      background:rgba(255,255,255,0.03);
+      border:1px solid rgba(255,255,255,0.06);
+      border-radius:12px; font-size:14px;
+      color:rgba(255,255,255,0.35); text-align:center;
+    }
+
+    @media(max-width:460px) {
+      .slide-outer { width:100%; }
+      .card { padding:36px 22px; }
+    }
   </style>
 </head>
 <body>
+<div class="bg"></div>
 <div id="root"></div>
+
 <script type="text/babel">
 const { useState, useEffect } = React;
 
 /* ── Config ── */
-const GOOGLE_CLIENT_ID = '1003665987587-9m9cj96gpkf1o9qcekq8amdq6t7dimpp.apps.googleusercontent.com';
-const REDIRECT_URI     = window.location.origin + window.location.pathname;
-const DB_STUDENTS      = 'gptkquiz_students';
-const DB_TEACHERS      = 'gptkquiz_teachers';
+const CLIENT_ID   = '1003665987587-9m9cj96gpkf1o9qcekq8amdq6t7dimpp.apps.googleusercontent.com';
+const REDIRECT    = window.location.origin + window.location.pathname;
+const DB_S        = 'gptkquiz_students';
+const DB_T        = 'gptkquiz_teachers';
 
 /* ── Helpers ── */
-function parseJwt(token) {
-  try { return JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); }
-  catch { return null; }
-}
-function saveUser(store, user) {
-  const list = JSON.parse(localStorage.getItem(store)||'[]');
-  const i = list.findIndex(u=>u.email===user.email);
+const parseJwt = t => { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); } catch { return null; } };
+const getDB    = k => JSON.parse(localStorage.getItem(k)||'[]');
+const setDB    = (k,v) => localStorage.setItem(k,JSON.stringify(v));
+function upsert(store, user) {
+  const list = getDB(store);
+  const i    = list.findIndex(u=>u.email===user.email);
   if(i>=0) list[i]={...list[i],...user}; else list.push(user);
-  localStorage.setItem(store, JSON.stringify(list));
+  setDB(store,list);
 }
-function findUser(store, key, val) {
-  return (JSON.parse(localStorage.getItem(store)||'[]')).find(u=>u[key]===val)||null;
-}
+const find = (store,key,val) => getDB(store).find(u=>u[key]===val)||null;
+
 function googleURL() {
-  return 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
-    client_id:     GOOGLE_CLIENT_ID,
-    redirect_uri:  REDIRECT_URI,
+  return 'https://accounts.google.com/o/oauth2/v2/auth?'+new URLSearchParams({
+    client_id:     CLIENT_ID,
+    redirect_uri:  REDIRECT,
     response_type: 'token id_token',
     scope:         'openid email profile',
     prompt:        'select_account',
@@ -230,188 +363,149 @@ function googleURL() {
 }
 
 /* ── Google SVG ── */
-function GIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 48 48">
-      <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.2l6.7-6.7C35.8 2.5 30.3 0 24 0 14.7 0 6.7 5.4 2.8 13.3l7.8 6.1C12.6 13 17.9 9.5 24 9.5z"/>
-      <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17z"/>
-      <path fill="#FBBC05" d="M10.6 28.6A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.6l-7.8-6.1A23.9 23.9 0 0 0 0 24c0 3.9.9 7.5 2.5 10.7l8.1-6.1z"/>
-      <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.8 2.3-8.4 2.3-6.1 0-11.4-4.1-13.3-9.7l-8.1 6.1C6.7 42.6 14.7 48 24 48z"/>
-    </svg>
-  );
-}
+const GIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 48 48">
+    <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.2l6.7-6.7C35.8 2.5 30.3 0 24 0 14.7 0 6.7 5.4 2.8 13.3l7.8 6.1C12.6 13 17.9 9.5 24 9.5z"/>
+    <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17z"/>
+    <path fill="#FBBC05" d="M10.6 28.6A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.6l-7.8-6.1A23.9 23.9 0 0 0 0 24c0 3.9.9 7.5 2.5 10.7l8.1-6.1z"/>
+    <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.8 2.3-8.4 2.3-6.1 0-11.4-4.1-13.3-9.7l-8.1 6.1C6.7 42.6 14.7 48 24 48z"/>
+  </svg>
+);
 
-/* ── Google Button ── */
-function GoogleBtn({ label }) {
-  return (
-    <button className="google-btn" onClick={() => window.location.href = googleURL()}>
-      <GIcon /> {label}
-    </button>
-  );
-}
+const GBtn = ({ label }) => (
+  <button className="g-btn" onClick={() => window.location.href = googleURL()}>
+    <GIcon /> {label}
+  </button>
+);
 
-/* ── Choose Role (after Google redirect) ── */
+/* ── Choose Role ── */
 function ChooseRole({ gUser, onChosen }) {
   const [role, setRole] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setL] = useState(false);
   return (
-    <div className="auth-card">
-      <div className="brand">
-        <div className="brand-icon">🎓</div>
-        <span className="brand-name">GPTKQuiz</span>
-      </div>
-      {gUser.picture
-        ? <img src={gUser.picture} className="welcome-avatar" alt="" />
-        : <div className="welcome-avatar-ph">👤</div>}
-      <div className="welcome-name">Hi, {gUser.given_name || gUser.name}!</div>
-      <div className="welcome-email">{gUser.email}</div>
-      <p style={{fontSize:14,color:'#888',textAlign:'center',marginBottom:16}}>How are you using GPTKQuiz?</p>
+    <div className="card">
+      <div className="brand"><div className="brand-icon">🎓</div><span className="brand-name">GPTKQuiz</span></div>
+      {gUser.picture ? <img src={gUser.picture} className="avi" alt=""/> : <div className="avi-ph">👤</div>}
+      <div className="w-name">Hi, {gUser.given_name||gUser.name}!</div>
+      <div className="w-email">{gUser.email}</div>
+      <p style={{fontSize:13,color:'rgba(255,255,255,0.4)',textAlign:'center',marginBottom:16}}>How are you using GPTKQuiz?</p>
       <div className="role-grid">
-        <div className={`role-card${role==='student'?' selected':''}`} onClick={()=>setRole('student')}>
-          <div className="role-icon">🧑‍🎓</div>
-          <div className="role-label">Student</div>
-        </div>
-        <div className={`role-card${role==='teacher'?' selected':''}`} onClick={()=>setRole('teacher')}>
-          <div className="role-icon">🧑‍🏫</div>
-          <div className="role-label">Teacher</div>
-        </div>
+        {['student','teacher'].map(r=>(
+          <div key={r} className={`role-card${role===r?' sel':''}`} onClick={()=>setRole(r)}>
+            <div className="role-icon">{r==='student'?'🧑‍🎓':'🧑‍🏫'}</div>
+            <div className="role-label">{r.charAt(0).toUpperCase()+r.slice(1)}</div>
+          </div>
+        ))}
       </div>
-      <button className="primary-btn" disabled={!role||loading}
-        onClick={()=>{setLoading(true);setTimeout(()=>onChosen(role),500);}}>
-        {loading?<span className="spinner"/>:'Continue →'}
+      <button className="btn" disabled={!role||loading}
+        onClick={()=>{setL(true);setTimeout(()=>onChosen(role),500);}}>
+        {loading?<span className="spin"/>:'Continue →'}
       </button>
     </div>
   );
 }
 
-/* ── Student Registration (after Google) ── */
+/* ── Student Reg ── */
 function StudentReg({ gUser, onDone }) {
-  const [rollNo, setRoll] = useState('');
-  const [err, setErr] = useState('');
-  const [loading, setL] = useState(false);
-  const submit = () => {
-    if(!rollNo.trim()){setErr('Enter your Register / Roll Number.');return;}
+  const [roll, setRoll] = useState('');
+  const [err, setErr]   = useState('');
+  const [l, setL]       = useState(false);
+  const go = () => {
+    if(!roll.trim()){setErr('Enter your Register / Roll Number.');return;}
     setL(true);
-    const u = { name:gUser.name, email:gUser.email, picture:gUser.picture||'',
-                googleId:gUser.sub, rollNo:rollNo.trim().toUpperCase(), role:'student',
-                createdAt:new Date().toISOString() };
-    saveUser(DB_STUDENTS,u);
-    setTimeout(()=>onDone(u),600);
+    const u={name:gUser.name,email:gUser.email,picture:gUser.picture||'',
+             googleId:gUser.sub,rollNo:roll.trim().toUpperCase(),role:'student',
+             createdAt:new Date().toISOString()};
+    upsert(DB_S,u); setTimeout(()=>onDone(u),600);
   };
   return (
-    <div className="auth-card">
+    <div className="card">
       <div className="brand"><div className="brand-icon">🎓</div><span className="brand-name">GPTKQuiz</span></div>
-      <div className="auth-title">Almost there!</div>
-      <div className="auth-sub">Link your roll number to complete sign-up.</div>
-      {err && <div className="alert alert-error">⚠ {err}</div>}
-      <div className="input-group">
-        <label className="input-label">Full Name</label>
-        <input className="input-field" value={gUser.name} readOnly style={{opacity:0.55}} />
+      <div className="title">Almost there!</div>
+      <div className="sub">Link your roll number to complete sign-up.</div>
+      {err&&<div className="alert err">⚠ {err}</div>}
+      <div className="field"><span className="label">Full Name</span><input className="input" value={gUser.name} readOnly/></div>
+      <div className="field">
+        <span className="label">Register No. / Roll No.</span>
+        <input className="input" placeholder="e.g. 2026CS101" value={roll} autoFocus
+          onChange={e=>{setRoll(e.target.value);setErr('');}} onKeyDown={e=>e.key==='Enter'&&go()}/>
       </div>
-      <div className="input-group">
-        <label className="input-label">Register No. / Roll No.</label>
-        <input className="input-field" placeholder="e.g. 2026CS101" value={rollNo}
-          autoFocus
-          onChange={e=>{setRoll(e.target.value);setErr('');}}
-          onKeyDown={e=>e.key==='Enter'&&submit()} />
-      </div>
-      <div className="input-group">
-        <label className="input-label">Email (from Google)</label>
-        <input className="input-field" value={gUser.email} readOnly style={{opacity:0.55}} />
-      </div>
-      <button className="primary-btn" onClick={submit} disabled={loading}>
-        {loading?<span className="spinner"/>:'Complete Registration'}
-      </button>
-      <p className="footer-note">By continuing you agree to our <a href="#">Terms</a> &amp; <a href="#">Privacy</a>.</p>
+      <div className="field"><span className="label">Email</span><input className="input" value={gUser.email} readOnly/></div>
+      <button className="btn" onClick={go} disabled={l}>{l?<span className="spin"/>:'Complete Registration'}</button>
+      <p className="note">By continuing you agree to our <a href="#">Terms</a> &amp; <a href="#">Privacy</a>.</p>
     </div>
   );
 }
 
-/* ── Teacher Registration (after Google) ── */
+/* ── Teacher Reg ── */
 function TeacherReg({ gUser, onDone }) {
-  const [empId, setEmp] = useState('');
+  const [emp, setEmp] = useState('');
   const [dept, setDept] = useState('');
   const [err, setErr]   = useState('');
-  const [loading, setL] = useState(false);
-  const submit = () => {
-    if(!empId.trim()){setErr('Enter your Employee / Staff ID.');return;}
+  const [l, setL]       = useState(false);
+  const go = () => {
+    if(!emp.trim()){setErr('Enter your Employee / Staff ID.');return;}
     setL(true);
-    const u = { name:gUser.name, email:gUser.email, picture:gUser.picture||'',
-                googleId:gUser.sub, empId:empId.trim().toUpperCase(), dept:dept.trim(),
-                role:'teacher', createdAt:new Date().toISOString() };
-    saveUser(DB_TEACHERS,u);
-    setTimeout(()=>onDone(u),600);
+    const u={name:gUser.name,email:gUser.email,picture:gUser.picture||'',
+             googleId:gUser.sub,empId:emp.trim().toUpperCase(),dept:dept.trim(),
+             role:'teacher',createdAt:new Date().toISOString()};
+    upsert(DB_T,u); setTimeout(()=>onDone(u),600);
   };
   return (
-    <div className="auth-card">
+    <div className="card">
       <div className="brand"><div className="brand-icon">🎓</div><span className="brand-name">GPTKQuiz</span></div>
-      <div className="auth-title">Faculty Setup</div>
-      <div className="auth-sub">Enter your staff details to continue.</div>
-      {err && <div className="alert alert-error">⚠ {err}</div>}
-      <div className="input-group">
-        <label className="input-label">Full Name</label>
-        <input className="input-field" value={gUser.name} readOnly style={{opacity:0.55}} />
+      <div className="title">Faculty Setup</div>
+      <div className="sub">Enter your staff details to continue.</div>
+      {err&&<div className="alert err">⚠ {err}</div>}
+      <div className="field"><span className="label">Full Name</span><input className="input" value={gUser.name} readOnly/></div>
+      <div className="field">
+        <span className="label">Employee / Staff ID</span>
+        <input className="input" placeholder="e.g. FAC2026001" value={emp} autoFocus
+          onChange={e=>{setEmp(e.target.value);setErr('');}} onKeyDown={e=>e.key==='Enter'&&go()}/>
       </div>
-      <div className="input-group">
-        <label className="input-label">Employee / Staff ID</label>
-        <input className="input-field" placeholder="e.g. FAC2026001" value={empId}
-          autoFocus
-          onChange={e=>{setEmp(e.target.value);setErr('');}}
-          onKeyDown={e=>e.key==='Enter'&&submit()} />
+      <div className="field">
+        <span className="label">Department <span style={{textTransform:'none',opacity:.5}}>(optional)</span></span>
+        <input className="input" placeholder="e.g. Computer Science" value={dept} onChange={e=>setDept(e.target.value)}/>
       </div>
-      <div className="input-group">
-        <label className="input-label">Department <span style={{color:'#555'}}>(optional)</span></label>
-        <input className="input-field" placeholder="e.g. Computer Science" value={dept}
-          onChange={e=>setDept(e.target.value)} />
-      </div>
-      <button className="primary-btn" onClick={submit} disabled={loading}>
-        {loading?<span className="spinner"/>:'Complete Setup'}
-      </button>
-      <p className="footer-note">By continuing you agree to our <a href="#">Terms</a> &amp; <a href="#">Privacy</a>.</p>
+      <button className="btn" onClick={go} disabled={l}>{l?<span className="spin"/>:'Complete Setup'}</button>
+      <p className="note">By continuing you agree to our <a href="#">Terms</a> &amp; <a href="#">Privacy</a>.</p>
     </div>
   );
 }
 
-/* ── Welcome Dashboard ── */
+/* ── Welcome ── */
 function Welcome({ user, onLogout }) {
-  const isT = user.role === 'teacher';
+  const isT = user.role==='teacher';
   return (
-    <div className="auth-card" style={{maxWidth:440}}>
+    <div className="card" style={{maxWidth:420}}>
       <div className="brand" style={{justifyContent:'space-between'}}>
         <div style={{display:'flex',alignItems:'center',gap:10}}>
           <div className="brand-icon">🎓</div>
           <span className="brand-name">GPTKQuiz</span>
         </div>
-        <button className="logout-btn" onClick={onLogout}>Log out</button>
+        <button className="logout" onClick={onLogout}>Log out</button>
       </div>
-      {user.picture
-        ? <img src={user.picture} className="welcome-avatar" alt="" />
-        : <div className="welcome-avatar-ph">{isT?'🧑‍🏫':'🧑‍🎓'}</div>}
-      <div className="welcome-name">{user.name}</div>
-      <div className="welcome-email">{user.email}</div>
+      {user.picture ? <img src={user.picture} className="avi" alt=""/> : <div className="avi-ph">{isT?'🧑‍🏫':'🧑‍🎓'}</div>}
+      <div className="w-name">{user.name}</div>
+      <div className="w-email">{user.email}</div>
       <div className="info-box">
-        <div className="info-key">{isT ? 'Staff ID' : 'Roll Number'}</div>
-        <div className="info-val">{isT ? user.empId : user.rollNo}</div>
-        {isT && user.dept && <div className="info-sub">{user.dept}</div>}
+        <div className="info-key">{isT?'Staff ID':'Roll Number'}</div>
+        <div className="info-val">{isT?user.empId:user.rollNo}</div>
+        {isT&&user.dept&&<div className="info-sub">{user.dept}</div>}
       </div>
-      <div className="dash-box" style={{
-        background: isT ? 'rgba(168,85,247,0.07)' : 'rgba(99,102,241,0.07)',
-        border: `1px solid ${isT?'rgba(168,85,247,0.2)':'rgba(99,102,241,0.2)'}`,
-      }}>
-        {isT ? '🧑‍🏫 Teacher Dashboard — coming soon' : '🧑‍🎓 Student Exam Portal — coming soon'}
-      </div>
+      <div className="dash">{isT?'🧑‍🏫 Teacher Dashboard — coming soon':'🧑‍🎓 Student Exam Portal — coming soon'}</div>
     </div>
   );
 }
 
-/* ── Login Screen ── */
-function LoginScreen({ onSwitch, onLoggedIn }) {
-  const [tab, setTab]   = useState('student');
-  const [id, setId]     = useState('');
-  const [pw, setPw]     = useState('');
-  const [show, setShow] = useState(false);
-  const [err, setErr]   = useState('');
-  const [loading, setL] = useState(false);
+/* ── Login Panel ── */
+function LoginPanel({ onSwitch, onLoggedIn }) {
+  const [tab, setTab] = useState('student');
+  const [id, setId]   = useState('');
+  const [pw, setPw]   = useState('');
+  const [show, setSh] = useState(false);
+  const [err, setErr] = useState('');
+  const [l, setL]     = useState(false);
 
   const login = () => {
     setErr('');
@@ -419,188 +513,195 @@ function LoginScreen({ onSwitch, onLoggedIn }) {
     setL(true);
     setTimeout(()=>{
       if(tab==='student'){
-        const s = findUser(DB_STUDENTS,'rollNo',id.trim().toUpperCase())
-               || findUser(DB_STUDENTS,'email',id.trim());
-        if(s&&s.googleId){setErr('This account uses Google. Click "Continue with Google" above.');setL(false);return;}
-        const demo = (id==='student'&&pw==='student123')||(id.toUpperCase()==='2026CS101'&&pw==='student123');
+        const s=find(DB_S,'rollNo',id.trim().toUpperCase())||find(DB_S,'email',id.trim());
+        if(s&&s.googleId){setErr('Use "Continue with Google" for this account.');setL(false);return;}
+        const demo=(id==='student'&&pw==='student123')||(id.toUpperCase()==='2026CS101'&&pw==='student123');
         if(demo){onLoggedIn({name:'Demo Student',email:'demo@student.edu',rollNo:id.toUpperCase(),role:'student',picture:''});return;}
         if(s&&s.password===pw){onLoggedIn(s);return;}
-        setErr('Incorrect credentials. Try again or use Google Sign-In.');setL(false);
+        setErr('Incorrect credentials. Try Google Sign-In or create account.');setL(false);
       } else {
-        const t = findUser(DB_TEACHERS,'empId',id.trim().toUpperCase())
-               || findUser(DB_TEACHERS,'email',id.trim());
-        if(t&&t.googleId){setErr('This account uses Google. Click "Continue with Google" above.');setL(false);return;}
+        const t=find(DB_T,'empId',id.trim().toUpperCase())||find(DB_T,'email',id.trim());
+        if(t&&t.googleId){setErr('Use "Continue with Google" for this account.');setL(false);return;}
         if(id==='admin@faculty.edu'&&pw==='CSE@2026'){onLoggedIn({name:'Admin Faculty',email:'admin@faculty.edu',empId:'ADMIN001',role:'teacher',picture:''});return;}
         if(t&&t.password===pw){onLoggedIn(t);return;}
-        setErr('Incorrect credentials. Try again or use Google Sign-In.');setL(false);
+        setErr('Incorrect credentials. Try Google Sign-In or create account.');setL(false);
       }
     },700);
   };
 
   return (
-    <div className="auth-card">
+    <>
       <div className="brand"><div className="brand-icon">🎓</div><span className="brand-name">GPTKQuiz</span></div>
-      <div className="auth-title">Welcome back</div>
-      <div className="auth-sub">Sign in to your portal account.</div>
-      <div className="tab-row">
-        <button className={`tab-btn${tab==='student'?' active':''}`} onClick={()=>{setTab('student');setErr('');}}>Student</button>
-        <button className={`tab-btn${tab==='teacher'?' active':''}`} onClick={()=>{setTab('teacher');setErr('');}}>Teacher</button>
+      <div className="title">Welcome back</div>
+      <div className="sub">Sign in to your portal account.</div>
+      <div className="tabs">
+        <button className={`tab${tab==='student'?' on':''}`} onClick={()=>{setTab('student');setErr('');}}>Student</button>
+        <button className={`tab${tab==='teacher'?' on':''}`} onClick={()=>{setTab('teacher');setErr('');}}>Teacher</button>
       </div>
-      <GoogleBtn label="Continue with Google" />
+      <GBtn label="Continue with Google"/>
       <div className="divider">or</div>
-      {err && <div className="alert alert-error">⚠ {err}</div>}
-      <div className="input-group">
-        <label className="input-label">{tab==='student'?'Roll No. or Email':'Staff ID or Email'}</label>
-        <input className="input-field" autoFocus
+      {err&&<div className="alert err">⚠ {err}</div>}
+      <div className="field">
+        <span className="label">{tab==='student'?'Roll No. or Email':'Staff ID or Email'}</span>
+        <input className="input" autoFocus
           placeholder={tab==='student'?'e.g. 2026CS101':'e.g. FAC2026001'}
-          value={id} onChange={e=>{setId(e.target.value);setErr('');}}
-          onKeyDown={e=>e.key==='Enter'&&login()} />
+          value={id} onChange={e=>{setId(e.target.value);setErr('');}} onKeyDown={e=>e.key==='Enter'&&login()}/>
       </div>
-      <div className="input-group">
+      <div className="field">
         <div className="pw-row">
-          <label className="input-label" style={{margin:0}}>Password</label>
+          <span className="label" style={{margin:0}}>Password</span>
           <button className="forgot">Forgot password?</button>
         </div>
-        <div className="password-wrap">
-          <input className="input-field" type={show?'text':'password'}
-            placeholder="Enter password" value={pw}
-            onChange={e=>{setPw(e.target.value);setErr('');}}
-            onKeyDown={e=>e.key==='Enter'&&login()}
-            style={{paddingRight:44}} />
-          <button className="eye-btn" onClick={()=>setShow(s=>!s)}>{show?'🙈':'👁'}</button>
+        <div className="pw-wrap">
+          <input className="input" type={show?'text':'password'} placeholder="Enter password"
+            value={pw} onChange={e=>{setPw(e.target.value);setErr('');}}
+            onKeyDown={e=>e.key==='Enter'&&login()} style={{paddingRight:44}}/>
+          <button className="eye" onClick={()=>setSh(s=>!s)}>{show?'🙈':'👁'}</button>
         </div>
       </div>
-      <button className="primary-btn" onClick={login} disabled={loading}>
-        {loading?<span className="spinner"/>:'Sign In'}
-      </button>
-      <p className="footer-note" style={{marginTop:16}}>
-        No account? <a href="#" onClick={e=>{e.preventDefault();onSwitch('signup');}}>Create one</a>
-      </p>
-    </div>
+      <button className="btn" onClick={login} disabled={l}>{l?<span className="spin"/>:'Sign In'}</button>
+      <p className="note" style={{marginTop:14}}>No account? <a href="#" onClick={e=>{e.preventDefault();onSwitch('signup');}}>Create one</a></p>
+    </>
   );
 }
 
-/* ── Sign Up Screen ── */
-function SignupScreen({ onSwitch }) {
-  const [tab, setTab]     = useState('student');
-  const [name, setName]   = useState('');
-  const [uid, setUid]     = useState('');
-  const [email, setEmail] = useState('');
-  const [pw, setPw]       = useState('');
-  const [show, setShow]   = useState(false);
-  const [err, setErr]     = useState('');
-  const [ok, setOk]       = useState('');
-  const [loading, setL]   = useState(false);
+/* ── Signup Panel ── */
+function SignupPanel({ onSwitch }) {
+  const [tab, setTab]   = useState('student');
+  const [name, setName] = useState('');
+  const [uid, setUid]   = useState('');
+  const [email, setEm]  = useState('');
+  const [pw, setPw]     = useState('');
+  const [show, setSh]   = useState(false);
+  const [err, setErr]   = useState('');
+  const [ok, setOk]     = useState('');
+  const [l, setL]       = useState(false);
 
-  const submit = () => {
+  const go = () => {
     setErr('');setOk('');
-    if(!name.trim()||!uid.trim()||!email.trim()||!pw.trim()){setErr('All fields required.');return;}
+    if(!name.trim()||!uid.trim()||!email.trim()||!pw.trim()){setErr('All fields are required.');return;}
     if(pw.length<6){setErr('Password must be at least 6 characters.');return;}
     setL(true);
     setTimeout(()=>{
       if(tab==='student'){
-        const exists = findUser(DB_STUDENTS,'rollNo',uid.trim().toUpperCase())||findUser(DB_STUDENTS,'email',email.trim());
-        if(exists){setErr('Account already exists. Sign in instead.');setL(false);return;}
-        saveUser(DB_STUDENTS,{name:name.trim(),email:email.trim(),rollNo:uid.trim().toUpperCase(),password:pw,role:'student',createdAt:new Date().toISOString()});
+        const ex=find(DB_S,'rollNo',uid.trim().toUpperCase())||find(DB_S,'email',email.trim());
+        if(ex){setErr('Account already exists. Sign in instead.');setL(false);return;}
+        upsert(DB_S,{name:name.trim(),email:email.trim(),rollNo:uid.trim().toUpperCase(),password:pw,role:'student',createdAt:new Date().toISOString()});
       } else {
-        const exists = findUser(DB_TEACHERS,'empId',uid.trim().toUpperCase())||findUser(DB_TEACHERS,'email',email.trim());
-        if(exists){setErr('Account already exists. Sign in instead.');setL(false);return;}
-        saveUser(DB_TEACHERS,{name:name.trim(),email:email.trim(),empId:uid.trim().toUpperCase(),password:pw,role:'teacher',createdAt:new Date().toISOString()});
+        const ex=find(DB_T,'empId',uid.trim().toUpperCase())||find(DB_T,'email',email.trim());
+        if(ex){setErr('Account already exists. Sign in instead.');setL(false);return;}
+        upsert(DB_T,{name:name.trim(),email:email.trim(),empId:uid.trim().toUpperCase(),password:pw,role:'teacher',createdAt:new Date().toISOString()});
       }
-      setOk('Account created! Redirecting to sign in…');setL(false);
-      setTimeout(()=>onSwitch('login'),1500);
+      setOk('Account created! Taking you to sign in…');setL(false);
+      setTimeout(()=>onSwitch('login'),1600);
     },800);
   };
 
   return (
-    <div className="auth-card">
+    <>
       <div className="brand"><div className="brand-icon">🎓</div><span className="brand-name">GPTKQuiz</span></div>
-      <div className="auth-title">Create account</div>
-      <div className="auth-sub">Join GPTKQuiz today.</div>
-      <div className="tab-row">
-        <button className={`tab-btn${tab==='student'?' active':''}`} onClick={()=>{setTab('student');setErr('');}}>Student</button>
-        <button className={`tab-btn${tab==='teacher'?' active':''}`} onClick={()=>{setTab('teacher');setErr('');}}>Teacher</button>
+      <div className="title">Create account</div>
+      <div className="sub">Join GPTKQuiz today.</div>
+      <div className="tabs">
+        <button className={`tab${tab==='student'?' on':''}`} onClick={()=>{setTab('student');setErr('');}}>Student</button>
+        <button className={`tab${tab==='teacher'?' on':''}`} onClick={()=>{setTab('teacher');setErr('');}}>Teacher</button>
       </div>
-      <GoogleBtn label="Sign up with Google" />
+      <GBtn label="Sign up with Google"/>
       <div className="divider">or sign up with email</div>
-      {err && <div className="alert alert-error">⚠ {err}</div>}
-      {ok  && <div className="alert alert-success">✅ {ok}</div>}
-      <div className="input-group">
-        <label className="input-label">Full Name</label>
-        <input className="input-field" placeholder="Your full name" value={name} autoFocus
-          onChange={e=>{setName(e.target.value);setErr('');}} />
+      {err&&<div className="alert err">⚠ {err}</div>}
+      {ok &&<div className="alert suc">✅ {ok}</div>}
+      <div className="field">
+        <span className="label">Full Name</span>
+        <input className="input" placeholder="Your full name" value={name} autoFocus
+          onChange={e=>{setName(e.target.value);setErr('');}}/>
       </div>
-      <div className="input-group">
-        <label className="input-label">{tab==='student'?'Register No. / Roll No.':'Employee / Staff ID'}</label>
-        <input className="input-field" placeholder={tab==='student'?'e.g. 2026CS101':'e.g. FAC2026001'}
-          value={uid} onChange={e=>{setUid(e.target.value);setErr('');}} />
+      <div className="field">
+        <span className="label">{tab==='student'?'Register No. / Roll No.':'Employee / Staff ID'}</span>
+        <input className="input" placeholder={tab==='student'?'e.g. 2026CS101':'e.g. FAC2026001'}
+          value={uid} onChange={e=>{setUid(e.target.value);setErr('');}}/>
       </div>
-      <div className="input-group">
-        <label className="input-label">Email Address</label>
-        <input className="input-field" type="email" placeholder="you@example.com" value={email}
-          onChange={e=>{setEmail(e.target.value);setErr('');}} />
+      <div className="field">
+        <span className="label">Email Address</span>
+        <input className="input" type="email" placeholder="you@example.com" value={email}
+          onChange={e=>{setEm(e.target.value);setErr('');}}/>
       </div>
-      <div className="input-group">
-        <label className="input-label">Password</label>
-        <div className="password-wrap">
-          <input className="input-field" type={show?'text':'password'} placeholder="Min 6 characters"
+      <div className="field">
+        <span className="label">Password</span>
+        <div className="pw-wrap">
+          <input className="input" type={show?'text':'password'} placeholder="Min 6 characters"
             value={pw} onChange={e=>{setPw(e.target.value);setErr('');}}
-            onKeyDown={e=>e.key==='Enter'&&submit()} style={{paddingRight:44}} />
-          <button className="eye-btn" onClick={()=>setShow(s=>!s)}>{show?'🙈':'👁'}</button>
+            onKeyDown={e=>e.key==='Enter'&&go()} style={{paddingRight:44}}/>
+          <button className="eye" onClick={()=>setSh(s=>!s)}>{show?'🙈':'👁'}</button>
         </div>
       </div>
-      <button className="primary-btn" onClick={submit} disabled={loading}>
-        {loading?<span className="spinner"/>:'Create Account'}
-      </button>
-      <p className="footer-note" style={{marginTop:16}}>
+      <button className="btn" onClick={go} disabled={l}>{l?<span className="spin"/>:'Create Account'}</button>
+      <p className="note" style={{marginTop:14}}>
         Already have an account? <a href="#" onClick={e=>{e.preventDefault();onSwitch('login');}}>Sign in</a>
       </p>
-      <p className="footer-note" style={{marginTop:6}}>
+      <p className="note" style={{marginTop:6}}>
         By creating an account you agree to our <a href="#">Terms</a> &amp; <a href="#">Privacy Policy</a>.
       </p>
-    </div>
+    </>
   );
 }
 
 /* ── ROOT APP ── */
 function App() {
-  const [screen, setScreen] = useState('login');
-  const [gUser, setGUser]   = useState(null);
-  const [user, setUser]     = useState(null);
+  const [screen, setScreen] = useState('login');  // login | signup | chooseRole | studentReg | teacherReg | welcome
+  const [gUser,  setGUser]  = useState(null);
+  const [user,   setUser]   = useState(null);
 
-  /* Handle Google OAuth redirect — token comes back in URL hash */
-  useEffect(() => {
+  /* Parse Google OAuth hash */
+  useEffect(()=>{
     const hash = window.location.hash;
     if(!hash) return;
     const p = new URLSearchParams(hash.slice(1));
-    const idToken = p.get('id_token');
-    if(!idToken) return;
-    const payload = parseJwt(idToken);
+    const id = p.get('id_token');
+    if(!id) return;
+    const payload = parseJwt(id);
     if(!payload) return;
     history.replaceState(null,'',window.location.pathname);
-    const g = { sub:payload.sub, name:payload.name, given_name:payload.given_name,
-                email:payload.email, picture:payload.picture };
-    // Already registered?
-    const s = findUser(DB_STUDENTS,'googleId',g.sub)||findUser(DB_STUDENTS,'email',g.email);
-    const t = findUser(DB_TEACHERS,'googleId',g.sub)||findUser(DB_TEACHERS,'email',g.email);
+    const g={sub:payload.sub,name:payload.name,given_name:payload.given_name,email:payload.email,picture:payload.picture};
+    const s=find(DB_S,'googleId',g.sub)||find(DB_S,'email',g.email);
+    const t=find(DB_T,'googleId',g.sub)||find(DB_T,'email',g.email);
     if(s){setUser(s);setScreen('welcome');return;}
     if(t){setUser(t);setScreen('welcome');return;}
-    // New user — pick role
-    setGUser(g);
-    setScreen('chooseRole');
+    setGUser(g); setScreen('chooseRole');
   },[]);
 
+  /* ── Special screens (no slide wrapper) ── */
   if(screen==='welcome'&&user)
-    return <Welcome user={user} onLogout={()=>{setUser(null);setScreen('login');}}/>;
+    return <div style={{position:'relative',zIndex:1}}><Welcome user={user} onLogout={()=>{setUser(null);setScreen('login');}}/></div>;
   if(screen==='chooseRole'&&gUser)
-    return <ChooseRole gUser={gUser} onChosen={r=>setScreen(r==='student'?'studentReg':'teacherReg')}/>;
+    return <div style={{position:'relative',zIndex:1}}><ChooseRole gUser={gUser} onChosen={r=>setScreen(r==='student'?'studentReg':'teacherReg')}/></div>;
   if(screen==='studentReg'&&gUser)
-    return <StudentReg gUser={gUser} onDone={u=>{setUser(u);setScreen('welcome');}}/>;
+    return <div style={{position:'relative',zIndex:1}}><StudentReg gUser={gUser} onDone={u=>{setUser(u);setScreen('welcome');}}/></div>;
   if(screen==='teacherReg'&&gUser)
-    return <TeacherReg gUser={gUser} onDone={u=>{setUser(u);setScreen('welcome');}}/>;
-  if(screen==='signup')
-    return <SignupScreen onSwitch={setScreen}/>;
-  return <LoginScreen onSwitch={setScreen} onLoggedIn={u=>{setUser(u);setScreen('welcome');}}/>;
+    return <div style={{position:'relative',zIndex:1}}><TeacherReg gUser={gUser} onDone={u=>{setUser(u);setScreen('welcome');}}/></div>;
+
+  /* ── Sliding Login / Signup ── */
+  return (
+    <div className="slide-outer">
+      {/* track is 200% wide; each panel is 50% = 1 card width */}
+      <div className={`slide-track${screen==='signup'?' show-signup':''}`} style={{width:'200%'}}>
+
+        {/* Login panel */}
+        <div className="slide-panel">
+          <div className="card">
+            <LoginPanel onSwitch={setScreen} onLoggedIn={u=>{setUser(u);setScreen('welcome');}}/>
+          </div>
+        </div>
+
+        {/* Signup panel */}
+        <div className="slide-panel">
+          <div className="card">
+            <SignupPanel onSwitch={setScreen}/>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
