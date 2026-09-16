@@ -131,7 +131,7 @@ const printReport = (reportTitle, meta, headers, rows) => {
 function WhatsAppShareModal({ title, subtitle, messageText, onClose }) {
   const [copied, setCopied] = useState(false);
   const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(messageText)}`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(waUrl)}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(waUrl)}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(messageText);
@@ -842,22 +842,22 @@ function TeacherDashboard({ user, onLogout }) {
           </div>
 
           {/* Filter Bar */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 18 }}>
-            <div className="field" style={{ margin: 0 }}>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div className="field" style={{ margin: 0, flex: 1, minWidth: 200 }}>
               <span className="label">Filter by Quiz</span>
               <select
                 className="input"
-                style={{ cursor: 'pointer' }}
+                style={{ cursor: 'pointer', backgroundColor: 'rgba(15, 23, 42, 0.8)', color: '#fff' }}
                 value={selectedQuizFilter}
                 onChange={e => setSelectedQuizFilter(e.target.value)}
               >
-                <option value="all">All Quizzes</option>
+                <option value="all" style={{ background: '#0f172a', color: '#fff' }}>All Quizzes</option>
                 {quizzes.map(q => (
-                  <option key={q.id} value={q.id}>{q.title}</option>
+                  <option key={q.id} value={q.id} style={{ background: '#0f172a', color: '#fff' }}>{q.title}</option>
                 ))}
               </select>
             </div>
-            <div className="field" style={{ margin: 0 }}>
+            <div className="field" style={{ margin: 0, width: '100%', maxWidth: 280 }}>
               <span className="label">Search Student Name or Roll</span>
               <input
                 className="input"
