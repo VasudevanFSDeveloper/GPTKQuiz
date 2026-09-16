@@ -538,6 +538,8 @@ function TeacherDashboard({ user, onLogout }) {
         }
       }
     }
+    q.lastEditedAt = Date.now();
+    
     firebase.database().ref('quizzes/' + q.id).set(q).then(() => {
       setModalOpen(false);
       setEditQuiz(null);
@@ -1336,7 +1338,8 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
       score: antiCheatFail ? 0 : correct,
       totalQuestions: total,
       percentage: pct,
-      remarks: antiCheatFail ? 'Disqualified (Tab Switching)' : 'Completed'
+      remarks: antiCheatFail ? 'Disqualified (Tab Switching)' : 'Completed',
+      quizVersion: quiz.lastEditedAt || 0
     };
 
     firebase.database().ref('results/' + result.id).set(result).then(() => {
@@ -1698,7 +1701,10 @@ function StudentDashboard({ user, onLogout }) {
         ) : (
           <div className="quiz-grid">
             {todayQuizzes.map(q => {
-              const completedRecord = studentResults.find(r => r.quizId === q.id || r.quizTitle === q.title);
+              const completedRecord = studentResults.find(r => 
+                (r.quizId === q.id || r.quizTitle === q.title) && 
+                ((r.quizVersion || 0) >= (q.lastEditedAt || 0))
+              );
               return (
                 <div key={q.id} className="quiz-card is-live">
                   <div>
