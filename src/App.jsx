@@ -1332,6 +1332,7 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
       quizId: quiz.id,
       quizTitle: quiz.title,
       dateTaken: getTodayISODate(),
+      timeTaken: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
       score: antiCheatFail ? 0 : correct,
       totalQuestions: total,
       percentage: pct,
@@ -1697,7 +1698,7 @@ function StudentDashboard({ user, onLogout }) {
         ) : (
           <div className="quiz-grid">
             {todayQuizzes.map(q => {
-              const alreadyTaken = studentResults.some(r => r.quizId === q.id || r.quizTitle === q.title);
+              const completedRecord = studentResults.find(r => r.quizId === q.id || r.quizTitle === q.title);
               return (
                 <div key={q.id} className="quiz-card is-live">
                   <div>
@@ -1716,10 +1717,15 @@ function StudentDashboard({ user, onLogout }) {
                     </div>
                   </div>
 
-                  {alreadyTaken ? (
-                    <button className="btn-action btn-secondary" disabled style={{ opacity: 0.6, cursor: 'default' }}>
-                      <CheckIcon/> Completed
-                    </button>
+                  {completedRecord ? (
+                    <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', padding: '12px', borderRadius: '10px', textAlign: 'center' }}>
+                      <div style={{ color: '#4ade80', fontWeight: 'bold', fontSize: '13px', marginBottom: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                        <CheckIcon/> You attended already
+                      </div>
+                      <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '11.5px' }}>
+                        On {completedRecord.dateTaken}{completedRecord.timeTaken ? ` at ${completedRecord.timeTaken}` : ''}
+                      </div>
+                    </div>
                   ) : (
                     <button
                       className="btn-action btn-start"
