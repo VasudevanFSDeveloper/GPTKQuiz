@@ -1066,11 +1066,11 @@ function TeacherDashboard({ user, onLogout }) {
                       <td>
                         <span style={{
                           padding: '4px 9px', borderRadius: 8,
-                          background: r.percentage >= 80 ? 'rgba(34,197,94,0.15)' : r.percentage >= 50 ? 'rgba(56,189,248,0.15)' : 'rgba(239,68,68,0.15)',
-                          color: r.percentage >= 80 ? '#86efac' : r.percentage >= 50 ? '#38bdf8' : '#fca5a5',
+                          background: (r.remarks && r.remarks.includes('Disqualified')) ? 'rgba(239,68,68,0.2)' : r.percentage >= 80 ? 'rgba(34,197,94,0.15)' : r.percentage >= 50 ? 'rgba(56,189,248,0.15)' : 'rgba(239,68,68,0.15)',
+                          color: (r.remarks && r.remarks.includes('Disqualified')) ? '#ef4444' : r.percentage >= 80 ? '#86efac' : r.percentage >= 50 ? '#38bdf8' : '#fca5a5',
                           fontWeight: 800, fontSize: 11.5
                         }}>
-                          {r.percentage >= 80 ? 'Distinction' : r.percentage >= 50 ? 'Passed' : 'Needs Review'}
+                          {(r.remarks && r.remarks.includes('Disqualified')) ? 'Disqualified' : r.percentage >= 80 ? 'Distinction' : r.percentage >= 50 ? 'Passed' : 'Needs Review'}
                         </span>
                       </td>
                       <td style={{ textAlign: 'right' }}>
@@ -1398,20 +1398,66 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
   const [scoreResult, setScoreResult] = useState(null);
   const [qrModal, setQrModal] = useState(null);
 
+  // Anti-cheat & Pre-start
+  const [preStartTimer, setPreStartTimer] = useState(10);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [warnings, setWarnings] = useState(0);
+  const [showWarningModal, setShowWarningModal] = useState(false);
+
+  // Pre-start countdown
   useEffect(() => {
-    if (isSubmitted) return;
+    if (hasStarted) return;
     const timer = setInterval(() => {
-      setTimeLeft(prev => {
+      setPreStartTimer(prev => {
         if (prev <= 1) {
           clearInterval(timer);
-          handleSubmit();
+          setHasStarted(true);
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [isSubmitted]);
+  }, [hasStarted]);
+
+  // Quiz active countdown
+  useEffect(() => {
+    if (!hasStarted || isSubmitted) return;
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          handleSubmit(true); // Auto submit on timeout
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [hasStarted, isSubmitted]);
+
+  // Anti-cheat Visibility Listener
+  useEffect(() => {
+    if (!hasStarted || isSubmitted) return;
+    
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setWarnings(w => {
+          const newWarnings = w + 1;
+          if (newWarnings >= 2) {
+            // Fail and auto-submit
+            handleSubmit(false, true); 
+          } else {
+            setShowWarningModal(true);
+          }
+          return newWarnings;
+        });
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [hasStarted, isSubmitted]);
 
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
@@ -1420,20 +1466,24 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
   const currentQ = quiz.questions[currentIdx];
 
   const handleSelectOption = (optIdx) => {
-    if (isSubmitted) return;
+    if (isSubmitted || !hasStarted) return;
     setSelectedAnswers({ ...selectedAnswers, [currentIdx]: optIdx });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = (timeout = false, antiCheatFail = false) => {
     if (isSubmitted) return;
+    
     let correct = 0;
-    quiz.questions.forEach((q, idx) => {
-      if (selectedAnswers[idx] === q.correctIndex) {
-        correct++;
-      }
-    });
+    if (!antiCheatFail) {
+      quiz.questions.forEach((q, idx) => {
+        if (selectedAnswers[idx] === q.correctIndex) {
+          correct++;
+        }
+      });
+    }
+    
     const total = quiz.questions.length;
-    const pct = Math.round((correct / total) * 100);
+    const pct = antiCheatFail ? 0 : Math.round((correct / total) * 100);
 
     const result = {
       id: 'res_' + Date.now(),
@@ -1442,14 +1492,16 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
       quizId: quiz.id,
       quizTitle: quiz.title,
       dateTaken: getTodayISODate(),
-      score: correct,
+      score: antiCheatFail ? 0 : correct,
       totalQuestions: total,
-      percentage: pct
+      percentage: pct,
+      remarks: antiCheatFail ? 'Disqualified (Tab Switching)' : 'Completed'
     };
 
     firebase.database().ref('results/' + result.id).set(result).then(() => {
       setScoreResult(result);
       setIsSubmitted(true);
+      setShowWarningModal(false);
     });
   };
 
@@ -1475,8 +1527,43 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
 
   return (
     <div className="modal-overlay">
-      <div className="modal-card" style={{ maxWidth: 640 }}>
-        {!isSubmitted ? (
+      <div className="modal-card" style={{ maxWidth: 640, position: 'relative', overflow: 'hidden' }}>
+        
+        {/* Anti-cheat Warning Modal */}
+        {showWarningModal && !isSubmitted && (
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(10px)', zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 30, textAlign: 'center' }}>
+            <div style={{ color: '#ef4444', marginBottom: 16 }}>
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+            </div>
+            <h2 style={{ fontSize: 24, fontWeight: 800, color: '#fff', marginBottom: 8 }}>WARNING! Tab Switch Detected</h2>
+            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 15, marginBottom: 24, maxWidth: 400 }}>
+              You navigated away from the quiz window. This is your <strong>first and only warning</strong>. If you leave the tab again, your quiz will be automatically submitted and marked as a failure.
+            </p>
+            <button className="btn-action btn-start" onClick={() => setShowWarningModal(false)}>
+              I Understand, Return to Quiz
+            </button>
+          </div>
+        )}
+
+        {/* Pre-start Timer */}
+        {!hasStarted && !isSubmitted ? (
+          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+            <div style={{ color: '#38bdf8', marginBottom: 20 }}>
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <h2 style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: 12 }}>Quiz Starts In...</h2>
+            <div style={{ fontSize: 72, fontWeight: 900, color: '#38bdf8', marginBottom: 24, textShadow: '0 0 20px rgba(56,189,248,0.4)' }}>
+              {preStartTimer}
+            </div>
+            <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 12, padding: 16, color: '#fca5a5', fontSize: 14, maxWidth: 400, margin: '0 auto' }}>
+              <strong>Anti-Cheat Active:</strong> Do NOT switch tabs or minimize your browser during the test. Doing so will result in an automatic failure.
+            </div>
+          </div>
+        ) : !isSubmitted ? (
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
               <div>
@@ -1574,17 +1661,26 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
         ) : (
           <div style={{ textAlign: 'center', padding: '16px 8px' }}>
             <div style={{
-              width: 64, height: 64, borderRadius: '50%', background: 'rgba(34,197,94,0.15)',
-              border: '2px solid #22c55e', color: '#22c55e', display: 'flex', alignItems: 'center',
+              width: 64, height: 64, borderRadius: '50%', 
+              background: scoreResult.remarks.includes('Disqualified') ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)',
+              border: `2px solid ${scoreResult.remarks.includes('Disqualified') ? '#ef4444' : '#22c55e'}`, 
+              color: scoreResult.remarks.includes('Disqualified') ? '#ef4444' : '#22c55e', 
+              display: 'flex', alignItems: 'center',
               justifyContent: 'center', margin: '0 auto 16px', fontSize: 28
             }}>
-              <CheckIcon/>
+              {scoreResult.remarks.includes('Disqualified') ? (
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              ) : <CheckIcon/>}
             </div>
             <div style={{ fontSize: 24, fontWeight: 800, color: '#fff', marginBottom: 4 }}>
-              Quiz Completed!
+              {scoreResult.remarks.includes('Disqualified') ? 'Quiz Failed!' : 'Quiz Completed!'}
             </div>
             <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginBottom: 20 }}>
-              Your responses have been recorded and saved to the university database.
+              {scoreResult.remarks.includes('Disqualified') 
+                ? 'Your quiz was automatically submitted due to an anti-cheat violation (Tab Switching).'
+                : 'Your responses have been recorded and saved to the university database.'}
             </div>
 
             <div style={{
@@ -1976,7 +2072,9 @@ const LoginPanel = React.forwardRef(({ onSwitch, onLoggedIn }, ref) => {
               uid: userCredential.user.uid,
               email: userCredential.user.email,
               name: data.name || 'Student',
-              role: data.role || 'student'
+              role: data.role || 'student',
+              rollNo: data.rollNo || '',
+              course: data.course || ''
             });
           });
       })
@@ -2007,7 +2105,9 @@ const LoginPanel = React.forwardRef(({ onSwitch, onLoggedIn }, ref) => {
                 uid: userCredential.user.uid,
                 email: userCredential.user.email,
                 name: (data && data.name) || userCredential.user.displayName || 'Student',
-                role: (data && data.role) || 'student'
+                role: (data && data.role) || 'student',
+                rollNo: (data && data.rollNo) || '',
+                course: (data && data.course) || ''
               });
             });
           });
