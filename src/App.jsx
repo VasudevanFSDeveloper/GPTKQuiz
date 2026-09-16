@@ -594,8 +594,8 @@ const parseAiText = (text) => {
 };
 
 function TeacherDashboard({ user, onLogout }) {
-  const [quizzes, setQuizzes] = useState(getDB(DB_Q));
-  const [results, setResults] = useState(getDB(DB_R));
+  const [quizzes, setQuizzes] = useState([]);
+  const [results, setResults] = useState([]);
   const [activeTab, setActiveTab] = useState('quizzes'); // 'quizzes' | 'results'
   const [modalOpen, setModalOpen] = useState(false);
   const [editQuiz, setEditQuiz] = useState(null);
@@ -612,10 +612,25 @@ function TeacherDashboard({ user, onLogout }) {
   const todayStr = getTodayDateString();
   const todayISO = getTodayISODate();
 
-  const refreshData = () => {
-    setQuizzes(getDB(DB_Q));
-    setResults(getDB(DB_R));
-  };
+  useEffect(() => {
+    const qRef = firebase.database().ref('quizzes');
+    const rRef = firebase.database().ref('results');
+
+    const qListener = qRef.on('value', snap => {
+      const data = snap.val() || {};
+      setQuizzes(Object.values(data));
+    });
+
+    const rListener = rRef.on('value', snap => {
+      const data = snap.val() || {};
+      setResults(Object.values(data));
+    });
+
+    return () => {
+      qRef.off('value', qListener);
+      rRef.off('value', rListener);
+    };
+  }, []);
 
   const handleProcessAiImport = () => {
     if (!aiImportText.trim()) return;
@@ -661,9 +676,7 @@ function TeacherDashboard({ user, onLogout }) {
 
   const handleDelete = (quizId) => {
     if (confirm('Are you sure you want to delete this quiz?')) {
-      const list = getDB(DB_Q).filter(q => q.id !== quizId);
-      setDB(DB_Q, list);
-      refreshData();
+      firebase.database().ref('quizzes/' + quizId).remove();
     }
   };
 
@@ -684,10 +697,10 @@ function TeacherDashboard({ user, onLogout }) {
         }
       }
     }
-    upsert(DB_Q, q);
-    refreshData();
-    setModalOpen(false);
-    setEditQuiz(null);
+    firebase.database().ref('quizzes/' + q.id).set(q).then(() => {
+      setModalOpen(false);
+      setEditQuiz(null);
+    });
   };
 
   const displayedQuizzes = todayFilter === 'today'
@@ -1434,9 +1447,10 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
       percentage: pct
     };
 
-    upsert(DB_R, result);
-    setScoreResult(result);
-    setIsSubmitted(true);
+    firebase.database().ref('results/' + result.id).set(result).then(() => {
+      setScoreResult(result);
+      setIsSubmitted(true);
+    });
   };
 
   const handleShareWhatsApp = () => {
@@ -1627,18 +1641,33 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
 
 /* STUDENT DASHBOARD */
 function StudentDashboard({ user, onLogout }) {
-  const [quizzes, setQuizzes] = useState(getDB(DB_Q));
-  const [results, setResults] = useState(getDB(DB_R));
+  const [quizzes, setQuizzes] = useState([]);
+  const [results, setResults] = useState([]);
   const [activeQuiz, setActiveQuiz] = useState(null);
   const [qrModal, setQrModal] = useState(null);
 
   const todayStr = getTodayDateString();
   const todayISO = getTodayISODate();
 
-  const refreshData = () => {
-    setQuizzes(getDB(DB_Q));
-    setResults(getDB(DB_R));
-  };
+  useEffect(() => {
+    const qRef = firebase.database().ref('quizzes');
+    const rRef = firebase.database().ref('results');
+
+    const qListener = qRef.on('value', snap => {
+      const data = snap.val() || {};
+      setQuizzes(Object.values(data));
+    });
+
+    const rListener = rRef.on('value', snap => {
+      const data = snap.val() || {};
+      setResults(Object.values(data));
+    });
+
+    return () => {
+      qRef.off('value', qListener);
+      rRef.off('value', rListener);
+    };
+  }, []);
 
   const studentResults = results.filter(r => r.studentEmail === user.email || r.studentName === user.name || r.studentEmail === user.rollNo);
   const todayQuizzes = quizzes.filter(q => q.date === todayISO);
@@ -1896,7 +1925,7 @@ function StudentDashboard({ user, onLogout }) {
           quiz={activeQuiz}
           studentUser={user}
           onClose={() => setActiveQuiz(null)}
-          onFinish={refreshData}
+          onFinish={() => {}}
         />
       )}
 
