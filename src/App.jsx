@@ -1984,20 +1984,20 @@ if (typeof firebase !== 'undefined') {
 }
 
 function ProfileSetupPanel({ user, onComplete }) {
+  const [name, setName]     = useState(user.name || '');
   const [rollNo, setRollNo] = useState('');
-  const [cls, setCls]       = useState('');
   const [course, setCourse] = useState('');
   const [err, setErr]       = useState('');
   const [l, setL]           = useState(false);
 
   const save = () => {
     setErr('');
-    if (!rollNo.trim() || !cls.trim() || !course.trim()) {
+    if (!name.trim() || !rollNo.trim() || !course.trim()) {
       setErr('Please fill out all fields.');
       return;
     }
     setL(true);
-    const updates = { rollNo: rollNo.trim(), class: cls.trim(), course: course.trim() };
+    const updates = { name: name.trim(), rollNo: rollNo.trim(), course: course.trim() };
     firebase.database().ref('users/' + user.uid).update(updates)
       .then(function() {
         onComplete({ ...user, ...updates });
@@ -2016,7 +2016,7 @@ function ProfileSetupPanel({ user, onComplete }) {
           <span className="brand-name">GPTKQuiz</span>
         </div>
         <div className="title" style={{ fontSize: 20 }}>Complete Your Profile</div>
-        <div className="sub">Welcome {user.name}! Please provide your details.</div>
+        <div className="sub">Welcome! Please provide your details to continue.</div>
 
         {err && (
           <div className="alert err" style={{ marginTop: 16 }}>
@@ -2025,20 +2025,20 @@ function ProfileSetupPanel({ user, onComplete }) {
         )}
 
         <div className="field" style={{ marginTop: 24 }}>
+          <span className="label">Your Full Name</span>
+          <input className="input" placeholder="e.g. Vasudevan S" value={name} onChange={e => setName(e.target.value)} />
+        </div>
+        <div className="field">
           <span className="label">Register Number</span>
           <input className="input" placeholder="e.g. 23CS01" value={rollNo} onChange={e => setRollNo(e.target.value)} />
         </div>
         <div className="field">
-          <span className="label">Class</span>
-          <input className="input" placeholder="e.g. CSE-A" value={cls} onChange={e => setCls(e.target.value)} />
-        </div>
-        <div className="field">
-          <span className="label">Course</span>
+          <span className="label">Course You Have Taken</span>
           <input className="input" placeholder="e.g. B.Tech Computer Science" value={course} onChange={e => setCourse(e.target.value)} />
         </div>
 
         <button className="btn" type="button" onClick={save} disabled={l} style={{ marginTop: 24 }}>
-          {l ? <div className="spinner"></div> : 'Save Profile'}
+          {l ? <div className="spinner"></div> : 'Save & Continue'}
         </button>
       </div>
     </div>
