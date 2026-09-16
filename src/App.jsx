@@ -1758,6 +1758,7 @@ function StudentDashboard({ user, onLogout }) {
 
 /* AUTHENTICATION VIEW */
 const LoginPanel = React.forwardRef(({ onSwitch, onLoggedIn }, ref) => {
+  const [mode, setMode] = useState('student');
   const [email, setEm]  = useState('');
   const [pw, setPw]     = useState('');
   const [show, setSh]   = useState(false);
@@ -1840,13 +1841,43 @@ const LoginPanel = React.forwardRef(({ onSwitch, onLoggedIn }, ref) => {
       <div className="title">Welcome back</div>
       <div className="sub">Sign in to access your portal.</div>
 
+      {/* Student / Teacher Toggle */}
+      <div style={{ display: 'flex', background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 4, margin: '20px 0 0' }}>
+        <button
+          type="button"
+          onClick={() => { setMode('student'); setEm(''); setPw(''); setErr(''); }}
+          style={{
+            flex: 1, padding: '8px 0', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700,
+            fontSize: 14, transition: 'all 0.2s',
+            background: mode === 'student' ? 'rgba(255,255,255,0.18)' : 'transparent',
+            color: mode === 'student' ? '#fff' : 'rgba(255,255,255,0.5)'
+          }}
+        >🎓 Student</button>
+        <button
+          type="button"
+          onClick={() => { setMode('teacher'); setEm('admin@gptkquiz.edu'); setPw('CSE@2026'); setErr(''); }}
+          style={{
+            flex: 1, padding: '8px 0', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700,
+            fontSize: 14, transition: 'all 0.2s',
+            background: mode === 'teacher' ? 'rgba(99,102,241,0.4)' : 'transparent',
+            color: mode === 'teacher' ? '#fff' : 'rgba(255,255,255,0.5)'
+          }}
+        >👨‍🏫 Teacher</button>
+      </div>
+
+      {mode === 'teacher' && (
+        <div style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 10, padding: '10px 14px', marginTop: 12, fontSize: 13, color: '#a5b4fc' }}>
+          🔐 Faculty credentials auto-filled. Click <strong>Sign In</strong> to continue.
+        </div>
+      )}
+
       {err && (
         <div className="alert err" style={{ marginTop: 16 }}>
           <AlertIcon/> <span>{err}</span>
         </div>
       )}
 
-      <div className="field" style={{ marginTop: err ? 16 : 32 }}>
+      <div className="field" style={{ marginTop: err ? 16 : 20 }}>
         <span className="label">Email Address</span>
         <input
           className="input"
@@ -1886,27 +1917,32 @@ const LoginPanel = React.forwardRef(({ onSwitch, onLoggedIn }, ref) => {
         </div>
       </div>
 
-      <button className="btn" type="button" onClick={login} disabled={l}>
-        {l ? <span className="spin"/> : 'Sign In'}
+      <button className="btn" type="button" onClick={login} disabled={l}
+        style={mode === 'teacher' ? { background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' } : {}}>
+        {l ? <span className="spin"/> : (mode === 'teacher' ? '🏫 Teacher Sign In' : 'Sign In')}
       </button>
 
-      <div style={{ display: 'flex', alignItems: 'center', margin: '24px 0', opacity: 0.5 }}>
-        <div style={{ flex: 1, height: 1, background: '#fff' }}></div>
-        <span style={{ padding: '0 12px', fontSize: 12, fontWeight: 600 }}>OR</span>
-        <div style={{ flex: 1, height: 1, background: '#fff' }}></div>
-      </div>
+      {mode === 'student' && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', margin: '24px 0', opacity: 0.5 }}>
+            <div style={{ flex: 1, height: 1, background: '#fff' }}></div>
+            <span style={{ padding: '0 12px', fontSize: 12, fontWeight: 600 }}>OR</span>
+            <div style={{ flex: 1, height: 1, background: '#fff' }}></div>
+          </div>
 
-      <button className="btn" type="button" onClick={handleGoogleLogin} disabled={l} style={{ background: '#fff', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-        <GoogleIcon/>
-        <span style={{ fontWeight: 600 }}>Sign in with Google</span>
-      </button>
+          <button className="btn" type="button" onClick={handleGoogleLogin} disabled={l} style={{ background: '#fff', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+            <GoogleIcon/>
+            <span style={{ fontWeight: 600 }}>Sign in with Google</span>
+          </button>
 
-      <p className="note">
-        Don't have an account?{' '}
-        <a href="#signup" onClick={e => { e.preventDefault(); onSwitch('signup'); }}>
-          Sign up
-        </a>
-      </p>
+          <p className="note">
+            Don't have an account?{' '}
+            <a href="#signup" onClick={e => { e.preventDefault(); onSwitch('signup'); }}>
+              Sign up
+            </a>
+          </p>
+        </>
+      )}
     </div>
   );
 });
