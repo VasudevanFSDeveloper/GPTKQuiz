@@ -221,6 +221,15 @@
       transform: translateY(-1px);
     }
 
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    body > #root {
+      animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
     /* Common Card Styles */
     .glass-card {
       background: rgba(15, 23, 42, 0.75);
@@ -230,6 +239,14 @@
       border-radius: 20px;
       padding: 24px;
       box-shadow: 0 15px 40px -10px rgba(0, 0, 0, 0.5);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+      will-change: transform;
+    }
+    
+    .glass-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.6), 0 0 20px rgba(56, 189, 248, 0.1);
+      border-color: rgba(255, 255, 255, 0.18);
     }
 
     /* Headings & Badges */

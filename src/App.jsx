@@ -739,16 +739,16 @@ function TeacherDashboard({ user, onLogout }) {
     const quizName = selectedQuizFilter === 'all' ? 'All Quizzes' : ((quizFound && quizFound.title) || selectedQuizFilter);
     const topScorers = [...filteredResults].sort((a, b) => b.percentage - a.percentage).slice(0, 3);
     
-    let text = `🎓 *GPTKQuiz — Examination Performance Report*\n`;
+    let text = `*GPTKQuiz — Examination Performance Report*\n`;
     text += `━━━━━━━━━━━━━━━━━━━━━\n`;
-    text += `📚 *Quiz:* ${quizName}\n`;
-    text += `👨‍🏫 *Faculty:* ${user.name}\n`;
-    text += `📅 *Date:* ${todayStr}\n`;
-    text += `📊 *Total Submissions:* ${totalSubmissions}\n`;
-    text += `📈 *Average Score:* ${avgPct}%\n`;
-    text += `✅ *Pass Rate:* ${passRate}%\n\n`;
+    text += `*Quiz:* ${quizName}\n`;
+    text += `*Faculty:* ${user.name}\n`;
+    text += `*Date:* ${todayStr}\n`;
+    text += `*Total Submissions:* ${totalSubmissions}\n`;
+    text += `*Average Score:* ${avgPct}%\n`;
+    text += `*Pass Rate:* ${passRate}%\n\n`;
     if (topScorers.length > 0) {
-      text += `🏆 *Top Performers:*\n`;
+      text += `*Top Performers:*\n`;
       topScorers.forEach((s, idx) => {
         text += `${idx + 1}. ${s.studentName} — ${s.percentage}% (${s.score}/${s.totalQuestions})\n`;
       });
@@ -764,15 +764,15 @@ function TeacherDashboard({ user, onLogout }) {
   };
 
   const handleOpenStudentWhatsAppQR = (r) => {
-    let text = `🎓 *GPTKQuiz Official Scorecard*\n`;
+    let text = `*GPTKQuiz Official Scorecard*\n`;
     text += `━━━━━━━━━━━━━━━━━━━━━\n`;
-    text += `👤 *Student Name:* ${r.studentName}\n`;
-    text += `🆔 *Roll / Email:* ${r.studentEmail}\n`;
-    text += `📚 *Quiz:* ${r.quizTitle}\n`;
-    text += `📅 *Date Taken:* ${r.dateTaken}\n`;
-    text += `🎯 *Score:* ${r.score} / ${r.totalQuestions}\n`;
-    text += `📊 *Accuracy:* ${r.percentage}%\n`;
-    text += `🏅 *Grade Status:* ${r.percentage >= 80 ? 'Distinction' : r.percentage >= 50 ? 'Passed' : 'Needs Review'}\n\n`;
+    text += `*Student Name:* ${r.studentName}\n`;
+    text += `*Roll / Email:* ${r.studentEmail}\n`;
+    text += `*Quiz:* ${r.quizTitle}\n`;
+    text += `*Date Taken:* ${r.dateTaken}\n`;
+    text += `*Score:* ${r.score} / ${r.totalQuestions}\n`;
+    text += `*Accuracy:* ${r.percentage}%\n`;
+    text += `*Grade Status:* ${r.percentage >= 80 ? 'Distinction' : r.percentage >= 50 ? 'Passed' : 'Needs Review'}\n\n`;
     text += `_Verified by Faculty: ${user.name}_`;
 
     setQrModal({
@@ -1149,7 +1149,10 @@ function TeacherDashboard({ user, onLogout }) {
                     }}
                     onClick={() => setShowAiImport(!showAiImport)}
                   >
-                    ✨ Import from AI
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                    </svg>
+                    Import from AI
                   </button>
                   <button
                     type="button"
@@ -1417,15 +1420,15 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
 
   const handleShareWhatsApp = () => {
     if (!scoreResult) return;
-    let text = `🎓 *My GPTKQuiz Test Result*\n`;
+    let text = `*My GPTKQuiz Test Result*\n`;
     text += `━━━━━━━━━━━━━━━━━━━━━\n`;
-    text += `👤 *Student:* ${studentUser.name}\n`;
-    text += `🆔 *Roll / Email:* ${studentUser.email || studentUser.rollNo}\n`;
-    text += `📚 *Quiz:* ${quiz.title}\n`;
-    text += `📅 *Date:* ${getTodayDateString()}\n`;
-    text += `🎯 *Score:* ${scoreResult.score} / ${scoreResult.totalQuestions}\n`;
-    text += `📊 *Accuracy:* ${scoreResult.percentage}%\n`;
-    text += `🏅 *Grade Status:* ${scoreResult.percentage >= 80 ? 'Distinction' : scoreResult.percentage >= 50 ? 'Passed' : 'Needs Review'}\n\n`;
+    text += `*Student:* ${studentUser.name}\n`;
+    text += `*Roll / Email:* ${studentUser.email || studentUser.rollNo}\n`;
+    text += `*Quiz:* ${quiz.title}\n`;
+    text += `*Date:* ${getTodayDateString()}\n`;
+    text += `*Score:* ${scoreResult.score} / ${scoreResult.totalQuestions}\n`;
+    text += `*Accuracy:* ${scoreResult.percentage}%\n`;
+    text += `*Grade Status:* ${scoreResult.percentage >= 80 ? 'Distinction' : scoreResult.percentage >= 50 ? 'Passed' : 'Needs Review'}\n\n`;
     text += `_Verified by GPTKQuiz University Portal_`;
 
     setQrModal({
@@ -1621,15 +1624,15 @@ function StudentDashboard({ user, onLogout }) {
   const upcomingQuizzes = quizzes.filter(q => q.date > todayISO);
 
   const handleShareResultQR = (r) => {
-    let text = `🎓 *My GPTKQuiz Official Scorecard*\n`;
+    let text = `*My GPTKQuiz Official Scorecard*\n`;
     text += `━━━━━━━━━━━━━━━━━━━━━\n`;
-    text += `👤 *Student Name:* ${user.name}\n`;
-    text += `🆔 *Roll / Email:* ${user.rollNo || user.email}\n`;
-    text += `📚 *Quiz:* ${r.quizTitle}\n`;
-    text += `📅 *Date Taken:* ${r.dateTaken}\n`;
-    text += `🎯 *Score:* ${r.score} / ${r.totalQuestions}\n`;
-    text += `📊 *Accuracy:* ${r.percentage}%\n`;
-    text += `🏅 *Grade Status:* ${r.percentage >= 80 ? 'Distinction' : r.percentage >= 50 ? 'Passed' : 'Needs Review'}\n\n`;
+    text += `*Student Name:* ${user.name}\n`;
+    text += `*Roll / Email:* ${user.rollNo || user.email}\n`;
+    text += `*Quiz:* ${r.quizTitle}\n`;
+    text += `*Date Taken:* ${r.dateTaken}\n`;
+    text += `*Score:* ${r.score} / ${r.totalQuestions}\n`;
+    text += `*Accuracy:* ${r.percentage}%\n`;
+    text += `*Grade Status:* ${r.percentage >= 80 ? 'Distinction' : r.percentage >= 50 ? 'Passed' : 'Needs Review'}\n\n`;
     text += `_Verified by GPTKQuiz University Portal_`;
 
     setQrModal({
