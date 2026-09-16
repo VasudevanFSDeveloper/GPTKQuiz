@@ -549,28 +549,35 @@ const parseAiText = (text) => {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    // Matches "1. Question", "Q1: Question", "**Q1.** Question"
-    if (/^(?:Q?\d+[\.\:\)]|\*\*Q?|Question|Q\:)\s+(.*)/i.test(line)) {
-      if (currentQ) questions.push(currentQ);
-      currentQ = {
-        question: line.replace(/^(?:Q?\d+[\.\:\)]|\*\*Q?\d*[\.\:\)]?\*\*?|Question|Q\:)\s+/i, '').replace(/\*\*$/, '').replace(/^\*\*/, ''),
-        options: [],
-        correctIndex: 0
-      };
-    } 
-    // Matches "A) Option", "a. Option", "(A) Option", "- Option", "**A)** Option"
-    else if (/^(?:[A-D][\.\)\:]|\([A-D]\)|\-|\*\*[A-D][\.\)\:]\*\*)\s+(.*)/i.test(line) && currentQ && currentQ.options.length < 4) {
-      currentQ.options.push(line.replace(/^(?:[A-D][\.\)\:]|\([A-D]\)|\-|\*\*[A-D][\.\)\:]\*\*)\s+/i, '').replace(/\*\*$/, '').replace(/^\*\*/, ''));
-    }
-    // Matches "Answer: A", "Correct Answer: B", "**Answer:** A"
-    else if (/^(?:\*\*?)?(?:Answer|Correct Answer|Ans)(?:\:|\s+)?(?:\*\*?)?\s*([A-D])/i.test(line) && currentQ) {
-      const match = line.match(/^(?:\*\*?)?(?:Answer|Correct Answer|Ans)(?:\:|\s+)?(?:\*\*?)?\s*([A-D])/i);
-      if (match && match[1]) {
-        currentQ.correctIndex = match[1].toUpperCase().charCodeAt(0) - 65;
+    const isOption = /^(?:[A-D][\.\)\:]|\([A-D]\)|\-|\*\*[A-D][\.\)\:]\*\*)\s+(.*)/i.test(line);
+    const isAnswer = /^(?:\*\*?)?(?:Answer|Correct Answer|Ans)(?:\:|\s+)?(?:\*\*?)?\s*([A-D])/i.test(line);
+
+    if (isOption) {
+      if (!currentQ) { currentQ = { question: 'Untitled Question', options: [], correctIndex: 0 }; }
+      if (currentQ.options.length < 4) {
+        currentQ.options.push(line.replace(/^(?:[A-D][\.\)\:]|\([A-D]\)|\-|\*\*[A-D][\.\)\:]\*\*)\s+/i, '').replace(/\*\*$/, '').replace(/^\*\*/, ''));
       }
-    }
-    else if (currentQ && currentQ.options.length === 0) {
-      currentQ.question += " " + line;
+    } else if (isAnswer) {
+      if (currentQ) {
+        const match = line.match(/^(?:\*\*?)?(?:Answer|Correct Answer|Ans)(?:\:|\s+)?(?:\*\*?)?\s*([A-D])/i);
+        if (match && match[1]) {
+          currentQ.correctIndex = match[1].toUpperCase().charCodeAt(0) - 65;
+        }
+      }
+    } else {
+      // It is neither an option nor an answer. Treat as question text.
+      // If the current question already has options or an answer, start a new one.
+      if (currentQ && (currentQ.options.length > 0 || currentQ.correctIndex !== 0)) {
+        questions.push(currentQ);
+        currentQ = null;
+      }
+      
+      let cleanLine = line.replace(/^(?:Q?\d+[\.\:\)]|\*\*Q?\d*[\.\:\)]?\*\*?|Question|Q\:)\s+/i, '').replace(/\*\*$/, '').replace(/^\*\*/, '');
+      if (!currentQ) {
+        currentQ = { question: cleanLine, options: [], correctIndex: 0 };
+      } else {
+        currentQ.question += ' ' + cleanLine;
+      }
     }
   }
   if (currentQ) questions.push(currentQ);
@@ -600,6 +607,7 @@ function TeacherDashboard({ user, onLogout }) {
   // AI Import State
   const [showAiImport, setShowAiImport] = useState(false);
   const [aiImportText, setAiImportText] = useState('');
+  const [aiMessage, setAiMessage] = useState(null);
 
   const todayStr = getTodayDateString();
   const todayISO = getTodayISODate();
@@ -611,15 +619,18 @@ function TeacherDashboard({ user, onLogout }) {
 
   const handleProcessAiImport = () => {
     if (!aiImportText.trim()) return;
+    setAiMessage(null);
     const importedQs = parseAiText(aiImportText);
     if (importedQs.length > 0) {
       const merged = [...editQuiz.questions, ...importedQs].filter(q => q.question.trim() || q.options[0] !== 'Option 1');
       setEditQuiz({ ...editQuiz, questions: merged.length > 0 ? merged : editQuiz.questions });
       setAiImportText('');
-      setShowAiImport(false);
-      alert(`Successfully imported ${importedQs.length} questions!`);
+      setAiMessage({ type: 'success', text: `Successfully imported ${importedQs.length} questions!` });
+      setTimeout(() => setAiMessage(null), 3000);
+      // close it automatically after a bit
+      setTimeout(() => setShowAiImport(false), 2000);
     } else {
-      alert('Could not detect any questions. Please check the format.');
+      setAiMessage({ type: 'error', text: 'Could not detect any questions. Please check the format.' });
     }
   };
 
@@ -1216,6 +1227,16 @@ function TeacherDashboard({ user, onLogout }) {
                     value={aiImportText}
                     onChange={e => setAiImportText(e.target.value)}
                   />
+                  {aiMessage && (
+                    <div style={{
+                      marginTop: 10, padding: 10, borderRadius: 8, fontSize: 13, fontWeight: 600,
+                      background: aiMessage.type === 'success' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                      color: aiMessage.type === 'success' ? '#4ade80' : '#f87171',
+                      border: `1px solid ${aiMessage.type === 'success' ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
+                    }}>
+                      {aiMessage.text}
+                    </div>
+                  )}
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
                     <button
                       type="button"
