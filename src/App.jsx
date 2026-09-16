@@ -2099,7 +2099,7 @@ const AlertIcon = () => (
 const firebaseConfig = {
   apiKey: "AIzaSyA9ZCIUwY9y-yjZewp8z-6gfhJSftyslco",
   authDomain: "gptk-quiz.firebaseapp.com",
-  databaseURL: "https://gptk-quiz-default-rtdb.firebaseio.com",
+  databaseURL: "https://gptk-quiz-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "gptk-quiz",
   storageBucket: "gptk-quiz.firebasestorage.app",
   messagingSenderId: "709424873311",
