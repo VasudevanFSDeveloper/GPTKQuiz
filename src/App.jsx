@@ -1877,232 +1877,66 @@ const LoginPanel = React.forwardRef(({ onSwitch, onLoggedIn }, ref) => {
         </div>
       )}
 
-      <div className="field" style={{ marginTop: err ? 16 : 20 }}>
-        <span className="label">Email Address</span>
-        <input
-          className="input"
-          autoFocus
-          type="email"
-          placeholder="you@example.com"
-          value={email}
-          onChange={e => { setEm(e.target.value); setErr(''); }}
-          onKeyDown={e => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              if (pwRef.current) pwRef.current.focus();
-            }
-          }}
-        />
-      </div>
-
-      <div className="field">
-        <div className="pw-row">
-          <span className="label" style={{ margin: 0 }}>Password</span>
-          <button type="button" className="forgot">Forgot password?</button>
-        </div>
-        <div className="pw-wrap">
-          <input
-            ref={pwRef}
-            className="input"
-            type={show ? 'text' : 'password'}
-            placeholder="Enter password"
-            value={pw}
-            onChange={e => { setPw(e.target.value); setErr(''); }}
-            onKeyDown={e => e.key === 'Enter' && login()}
-            style={{ paddingRight: 40 }}
-          />
-          <button type="button" className="eye" onClick={() => setSh(s => !s)} tabIndex={-1}>
-            {show ? <EyeOpenIcon/> : <EyeClosedIcon/>}
+      {/* Teacher: show email + password form */}
+      {mode === 'teacher' && (
+        <>
+          <div className="field" style={{ marginTop: 20 }}>
+            <span className="label">Email Address</span>
+            <input
+              className="input"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={e => { setEm(e.target.value); setErr(''); }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') { e.preventDefault(); if (pwRef.current) pwRef.current.focus(); }
+              }}
+            />
+          </div>
+          <div className="field">
+            <div className="pw-row">
+              <span className="label" style={{ margin: 0 }}>Password</span>
+            </div>
+            <div className="pw-wrap">
+              <input
+                ref={pwRef}
+                className="input"
+                type={show ? 'text' : 'password'}
+                placeholder="Enter password"
+                value={pw}
+                onChange={e => { setPw(e.target.value); setErr(''); }}
+                onKeyDown={e => e.key === 'Enter' && login()}
+                style={{ paddingRight: 40 }}
+              />
+              <button type="button" className="eye" onClick={() => setSh(s => !s)} tabIndex={-1}>
+                {show ? <EyeOpenIcon/> : <EyeClosedIcon/>}
+              </button>
+            </div>
+          </div>
+          <button className="btn" type="button" onClick={login} disabled={l}
+            style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', marginTop: 8 }}>
+            {l ? <span className="spin"/> : '🏫 Teacher Sign In'}
           </button>
-        </div>
-      </div>
+        </>
+      )}
 
-      <button className="btn" type="button" onClick={login} disabled={l}
-        style={mode === 'teacher' ? { background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' } : {}}>
-        {l ? <span className="spin"/> : (mode === 'teacher' ? '🏫 Teacher Sign In' : 'Sign In')}
-      </button>
-
+      {/* Student: only Google Sign-In */}
       {mode === 'student' && (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', margin: '24px 0', opacity: 0.5 }}>
-            <div style={{ flex: 1, height: 1, background: '#fff' }}></div>
-            <span style={{ padding: '0 12px', fontSize: 12, fontWeight: 600 }}>OR</span>
-            <div style={{ flex: 1, height: 1, background: '#fff' }}></div>
+          <div style={{ marginTop: 32, textAlign: 'center', color: 'rgba(255,255,255,0.6)', fontSize: 14, marginBottom: 16 }}>
+            Sign in with your Google account to continue
           </div>
-
-          <button className="btn" type="button" onClick={handleGoogleLogin} disabled={l} style={{ background: '#fff', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+          <button className="btn" type="button" onClick={handleGoogleLogin} disabled={l}
+            style={{ background: '#fff', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
             <GoogleIcon/>
             <span style={{ fontWeight: 600 }}>Sign in with Google</span>
           </button>
-
-          <p className="note">
-            Don't have an account?{' '}
-            <a href="#signup" onClick={e => { e.preventDefault(); onSwitch('signup'); }}>
-              Sign up
-            </a>
-          </p>
         </>
       )}
     </div>
   );
 });
 
-const SignupPanel = React.forwardRef(({ onSwitch }, ref) => {
-  const [name, setName] = useState('');
-  const [email, setEm]  = useState('');
-  const [pw, setPw]     = useState('');
-  const [show, setSh]   = useState(false);
-  const [err, setErr]   = useState('');
-  const [ok, setOk]     = useState('');
-  const [l, setL]       = useState(false);
-
-  const go = () => {
-    setErr(''); setOk('');
-    if (!name.trim() || !email.trim() || !pw.trim()) {
-      setErr('All fields are required.');
-      return;
-    }
-    if (pw.length < 6) {
-      setErr('Password must be at least 6 characters.');
-      return;
-    }
-    setL(true);
-    firebase.auth().createUserWithEmailAndPassword(email.trim(), pw)
-      .then(function(userCredential) {
-        return firebase.database().ref('users/' + userCredential.user.uid).set({
-          name: name.trim(),
-          email: email.trim(),
-          role: 'student',
-          createdAt: new Date().toISOString()
-        });
-      })
-      .then(function() {
-        setOk('Account created successfully! Taking you to sign in...');
-        setL(false);
-        setTimeout(function() { onSwitch('login'); }, 1500);
-      })
-      .catch(function(error) {
-        setErr(error.message);
-        setL(false);
-      });
-  };
-
-  const handleGoogleLogin = () => {
-    setErr('');
-    setL(true);
-    var provider = new firebase.auth.GoogleAuthProvider();
-    firebase.auth().signInWithPopup(provider)
-      .then(function(userCredential) {
-        return firebase.database().ref('users/' + userCredential.user.uid).once('value')
-          .then(function(snapshot) {
-            var data = snapshot.val();
-            var savePromise = data ? Promise.resolve() :
-              firebase.database().ref('users/' + userCredential.user.uid).set({
-                name: userCredential.user.displayName || 'Google User',
-                email: userCredential.user.email,
-                role: 'student',
-                createdAt: new Date().toISOString()
-              });
-            return savePromise;
-          });
-      })
-      .then(function() {
-        setOk('Account created successfully! Taking you to sign in...');
-        setL(false);
-        setTimeout(function() { onSwitch('login'); }, 1500);
-      })
-      .catch(function(error) {
-        setErr(error.message);
-        setL(false);
-      });
-  };
-
-  return (
-    <div ref={ref} className="slide-panel">
-      <div className="brand">
-        <div className="brand-icon"><BrandLogo/></div>
-        <span className="brand-name">GPTKQuiz</span>
-      </div>
-      <div className="title">Create account</div>
-      <div className="sub">Student Portal Registration.</div>
-
-      {err && (
-        <div className="alert err" style={{ marginTop: 16 }}>
-          <AlertIcon/> <span>{err}</span>
-        </div>
-      )}
-      {ok && (
-        <div className="alert suc" style={{ marginTop: 16 }}>
-          <CheckIcon/> <span>{ok}</span>
-        </div>
-      )}
-
-      <div className="field" style={{ marginTop: err || ok ? 16 : 32 }}>
-        <span className="label">Full Name</span>
-        <input
-          className="input"
-          placeholder="e.g. Rahul Sharma"
-          value={name}
-          onChange={e => { setName(e.target.value); setErr(''); }}
-        />
-      </div>
-
-      <div className="field">
-        <span className="label">Email Address</span>
-        <input
-          className="input"
-          type="email"
-          placeholder="you@example.com"
-          value={email}
-          onChange={e => { setEm(e.target.value); setErr(''); }}
-        />
-      </div>
-
-      <div className="field">
-        <span className="label">Password</span>
-        <div className="pw-wrap">
-          <input
-            className="input"
-            type={show ? 'text' : 'password'}
-            placeholder="Min 6 characters"
-            value={pw}
-            onChange={e => { setPw(e.target.value); setErr(''); }}
-            onKeyDown={e => e.key === 'Enter' && go()}
-            style={{ paddingRight: 40 }}
-          />
-          <button type="button" className="eye" onClick={() => setSh(s => !s)} tabIndex={-1}>
-            {show ? <EyeOpenIcon/> : <EyeClosedIcon/>}
-          </button>
-        </div>
-      </div>
-
-      <button className="btn" type="button" onClick={go} disabled={l}>
-        {l ? <span className="spin"/> : 'Create Account'}
-      </button>
-
-      <div style={{ display: 'flex', alignItems: 'center', margin: '24px 0', opacity: 0.5 }}>
-        <div style={{ flex: 1, height: 1, background: '#fff' }}></div>
-        <span style={{ padding: '0 12px', fontSize: 12, fontWeight: 600 }}>OR</span>
-        <div style={{ flex: 1, height: 1, background: '#fff' }}></div>
-      </div>
-
-      <button className="btn" type="button" onClick={handleGoogleLogin} disabled={l} style={{ background: '#fff', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-        <GoogleIcon/>
-        <span style={{ fontWeight: 600 }}>Sign up with Google</span>
-      </button>
-
-      <p className="note">
-        Already have an account?{' '}
-        <a href="#signin" onClick={e => { e.preventDefault(); onSwitch('login'); }}>
-          Sign in
-        </a>
-      </p>
-      <p className="note" style={{ marginTop: 4, fontSize: 11 }}>
-        By creating an account you agree to our <a href="#">Terms</a> &amp; <a href="#">Privacy</a>.
-      </p>
-    </div>
-  );
-});
 
 const GoogleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -2361,23 +2195,9 @@ function App() {
   return (
     <>
       <div className="auth-container">
-        <div
-          className="slide-outer"
-          style={containerHeight ? { height: `${containerHeight}px` } : undefined}
-        >
-          <div className={`slide-track${screen === 'signup' ? ' show-signup' : ''}`}>
-            <LoginPanel
-              ref={loginRef}
-              onSwitch={setScreen}
-              onLoggedIn={handleLogin}
-            />
-
-            <SignupPanel
-              ref={signupRef}
-              onSwitch={setScreen}
-            />
-          </div>
-        </div>
+        <LoginPanel
+          onLoggedIn={handleLogin}
+        />
       </div>
       <CookieConsent />
     </>
