@@ -4,160 +4,22 @@
   font-family: 'Arima', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  box-sizing: border-box;
 }
 
-/* Florin Pop Double-Slider Animation System (Exact match with C:/qwe/GPTK-QUIZ) */
-.slider-main-container {
-  position: relative;
-  overflow: hidden;
+html, body {
+  min-height: 100%;
   width: 100%;
-  max-width: 1024px;
-  min-height: 620px;
-  border-radius: 28px;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.5), 0 0 35px rgba(56, 189, 248, 0.12), inset 0 1px 1px rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-.form-container {
-  position: absolute;
-  top: 0;
-  height: 100%;
-  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.sign-in-container, .sign-up-container, .overlay-container, .overlay, .overlay-panel {
-  will-change: transform, opacity;
-  backface-visibility: hidden;
-  transform-style: preserve-3d;
-}
-
-.sign-in-container {
-  left: 0;
-  width: 50%;
-  z-index: 2;
-  opacity: 1;
-  pointer-events: auto;
-  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.slider-main-container.right-panel-active .sign-in-container {
-  transform: translate3d(100%, 0, 0);
-  opacity: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-
-.sign-up-container {
-  left: 0;
-  width: 50%;
-  opacity: 0;
-  z-index: 1;
-  pointer-events: none;
-  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.slider-main-container.right-panel-active .sign-up-container {
-  transform: translate3d(100%, 0, 0);
-  opacity: 1;
-  z-index: 5;
-  pointer-events: auto;
-  animation: showOverlay 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes showOverlay {
-  0%, 49.99% {
-    opacity: 0;
-    z-index: 1;
-  }
-  50%, 100% {
-    opacity: 1;
-    z-index: 5;
-  }
-}
-
-/* Overlay Container (Sliding gradient / glass panel) */
-.overlay-container {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: 50%;
-  height: 100%;
-  overflow: hidden;
-  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-  z-index: 100;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.slider-main-container.right-panel-active .overlay-container {
-  transform: translate3d(-100%, 0, 0);
-  border-left: none;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.overlay {
-  background: rgba(17, 24, 54, 0.85);
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
-  color: #ffffff;
-  position: relative;
-  left: -100%;
-  height: 100%;
-  width: 200%;
-  transform: translate3d(0, 0, 0);
-  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.slider-main-container.right-panel-active .overlay {
-  transform: translate3d(50%, 0, 0);
-}
-
-.overlay-panel {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
+  margin: 0;
   padding: 0;
-  text-align: center;
-  top: 0;
-  height: 100%;
-  width: 50%;
-  transform: translate3d(0, 0, 0);
-  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  background: #080b14;
+  overflow-x: hidden;
+  color: #e2e8f0;
 }
 
-.overlay-left {
-  transform: translateX(-20%);
-}
-
-.slider-main-container.right-panel-active .overlay-left {
-  transform: translateX(0);
-}
-
-.overlay-right {
-  right: 0;
-  transform: translateX(0);
-}
-
-.slider-main-container.right-panel-active .overlay-right {
-  transform: translateX(20%);
-}
-
-/* Tactile Interactive Button Hover System */
-button {
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
-}
-
-button:hover {
-  transform: translateY(-2px);
-}
-
-button:active {
-  transform: translateY(0px) scale(0.98) !important;
+#root {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
 }
