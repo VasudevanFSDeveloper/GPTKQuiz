@@ -2175,6 +2175,37 @@ function ProfileSetupPanel({ user, onComplete }) {
   );
 }
 
+function CookieConsent() {
+  const [accepted, setAccepted] = useState(() => {
+    return localStorage.getItem('cookieConsent') === 'true';
+  });
+
+  if (accepted) return null;
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0,
+      background: 'rgba(15, 23, 42, 0.95)', borderTop: '1px solid #334155',
+      padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      zIndex: 9999, color: '#e2e8f0', fontSize: '14px', backdropFilter: 'blur(10px)'
+    }}>
+      <div>
+        <strong>Cookie Policy:</strong> We use cookies and local storage to keep you securely logged in and improve your experience on GPTKQuiz.
+      </div>
+      <button 
+        className="btn" 
+        style={{ width: 'auto', padding: '8px 24px', marginLeft: '16px', minHeight: 'auto' }}
+        onClick={() => {
+          localStorage.setItem('cookieConsent', 'true');
+          setAccepted(true);
+        }}
+      >
+        Accept
+      </button>
+    </div>
+  );
+}
+
 /* ROOT APP */
 function App() {
   const [screen, setScreen] = useState('login');
@@ -2266,36 +2297,54 @@ function App() {
 
   if (user) {
     if (user.role === 'teacher') {
-      return <TeacherDashboard user={user} onLogout={handleLogout}/>;
+      return (
+        <>
+          <TeacherDashboard user={user} onLogout={handleLogout}/>
+          <CookieConsent />
+        </>
+      );
     } else {
       if (!user.rollNo) {
-        return <ProfileSetupPanel user={user} onComplete={handleLogin} />;
+        return (
+          <>
+            <ProfileSetupPanel user={user} onComplete={handleLogin} />
+            <CookieConsent />
+          </>
+        );
       }
-      return <StudentDashboard user={user} onLogout={handleLogout}/>;
+      return (
+        <>
+          <StudentDashboard user={user} onLogout={handleLogout}/>
+          <CookieConsent />
+        </>
+      );
     }
   }
 
   /* Render Authentication Screen */
   return (
-    <div className="auth-container">
-      <div
-        className="slide-outer"
-        style={containerHeight ? { height: `${containerHeight}px` } : undefined}
-      >
-        <div className={`slide-track${screen === 'signup' ? ' show-signup' : ''}`}>
-          <LoginPanel
-            ref={loginRef}
-            onSwitch={setScreen}
-            onLoggedIn={handleLogin}
-          />
+    <>
+      <div className="auth-container">
+        <div
+          className="slide-outer"
+          style={containerHeight ? { height: `${containerHeight}px` } : undefined}
+        >
+          <div className={`slide-track${screen === 'signup' ? ' show-signup' : ''}`}>
+            <LoginPanel
+              ref={loginRef}
+              onSwitch={setScreen}
+              onLoggedIn={handleLogin}
+            />
 
-          <SignupPanel
-            ref={signupRef}
-            onSwitch={setScreen}
-          />
+            <SignupPanel
+              ref={signupRef}
+              onSwitch={setScreen}
+            />
+          </div>
         </div>
       </div>
-    </div>
+      <CookieConsent />
+    </>
   );
 }
 
