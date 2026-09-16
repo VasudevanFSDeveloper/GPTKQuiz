@@ -1833,7 +1833,7 @@ const LoginPanel = React.forwardRef(({ onSwitch, onLoggedIn }, ref) => {
   };
 
   return (
-    <div ref={ref} className="slide-panel">
+    <div ref={ref} className="slide-panel" style={{ width: '100%' }}>
       <div className="brand">
         <div className="brand-icon"><BrandLogo/></div>
         <span className="brand-name">GPTKQuiz</span>
@@ -1848,28 +1848,32 @@ const LoginPanel = React.forwardRef(({ onSwitch, onLoggedIn }, ref) => {
           onClick={() => { setMode('student'); setEm(''); setPw(''); setErr(''); }}
           style={{
             flex: 1, padding: '8px 0', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700,
-            fontSize: 14, transition: 'all 0.2s',
+            fontSize: 14, transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             background: mode === 'student' ? 'rgba(255,255,255,0.18)' : 'transparent',
             color: mode === 'student' ? '#fff' : 'rgba(255,255,255,0.5)'
           }}
-        >🎓 Student</button>
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
+          </svg>
+          Student
+        </button>
         <button
           type="button"
-          onClick={() => { setMode('teacher'); setEm('admin@gptkquiz.edu'); setPw('CSE@2026'); setErr(''); }}
+          onClick={() => { setMode('teacher'); setEm(''); setPw(''); setErr(''); }}
           style={{
             flex: 1, padding: '8px 0', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700,
-            fontSize: 14, transition: 'all 0.2s',
+            fontSize: 14, transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             background: mode === 'teacher' ? 'rgba(99,102,241,0.4)' : 'transparent',
             color: mode === 'teacher' ? '#fff' : 'rgba(255,255,255,0.5)'
           }}
-        >👨‍🏫 Teacher</button>
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+          </svg>
+          Teacher
+        </button>
       </div>
-
-      {mode === 'teacher' && (
-        <div style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 10, padding: '10px 14px', marginTop: 12, fontSize: 13, color: '#a5b4fc' }}>
-          🔐 Faculty credentials auto-filled. Click <strong>Sign In</strong> to continue.
-        </div>
-      )}
 
       {err && (
         <div className="alert err" style={{ marginTop: 16 }}>
@@ -1915,7 +1919,7 @@ const LoginPanel = React.forwardRef(({ onSwitch, onLoggedIn }, ref) => {
           </div>
           <button className="btn" type="button" onClick={login} disabled={l}
             style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', marginTop: 8 }}>
-            {l ? <span className="spin"/> : '🏫 Teacher Sign In'}
+            {l ? <span className="spin"/> : 'Teacher Sign In'}
           </button>
         </>
       )}
@@ -2195,9 +2199,9 @@ function App() {
   return (
     <>
       <div className="auth-container">
-        <LoginPanel
-          onLoggedIn={handleLogin}
-        />
+        <div className="slide-outer" style={{ width: 410 }}>
+          <LoginPanel onLoggedIn={handleLogin} />
+        </div>
       </div>
       <CookieConsent />
     </>
