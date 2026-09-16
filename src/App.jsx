@@ -2091,6 +2091,17 @@ function App() {
   const signupRef = useRef(null);
 
   useEffect(() => {
+    // ONE-TIME CLEANUP (User requested wiping the local database)
+    const wiped = localStorage.getItem('wiped_db_v1');
+    if (!wiped) {
+      Object.keys(localStorage).forEach(key => {
+        if (key !== 'cookieConsent') localStorage.removeItem(key);
+      });
+      localStorage.setItem('wiped_db_v1', 'true');
+    }
+  }, []);
+
+  useEffect(() => {
     const unsubscribe = firebase.auth().onAuthStateChanged(function(firebaseUser) {
       if (firebaseUser) {
         // Master Admin Check
