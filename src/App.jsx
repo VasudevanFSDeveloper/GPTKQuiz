@@ -5,25 +5,6 @@ import 'firebase/compat/auth';
 import 'firebase/compat/database';
 
 
-
-/* Storage keys */
-const DB_S = 'gptkquiz_students';
-const DB_T = 'gptkquiz_teachers';
-const DB_Q = 'gptkquiz_quizzes';
-const DB_R = 'gptkquiz_results';
-const DB_SESSION = 'gptkquiz_session';
-
-const getDB = k => JSON.parse(localStorage.getItem(k) || '[]');
-const setDB = (k, v) => localStorage.setItem(k, JSON.stringify(v));
-function upsert(store, item) {
-  const list = getDB(store);
-  const i = list.findIndex(u => (item.id && u.id === item.id) || (item.email && u.email === item.email));
-  if (i >= 0) list[i] = { ...list[i], ...item };
-  else list.push(item);
-  setDB(store, list);
-}
-const find = (store, key, val) => getDB(store).find(u => u[key] === val) || null;
-
 /* Formatted Date Helper */
 const getTodayDateString = () => {
   const options = { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' };
@@ -33,151 +14,6 @@ const getTodayDateString = () => {
 const getTodayISODate = () => {
   return new Date().toISOString().split('T')[0];
 };
-
-/* Pre-seed Seed Data if empty */
-if (getDB(DB_S).length === 0) {
-  upsert(DB_S, { name: 'Rahul Sharma', email: 'rahul@student.edu', rollNo: '2026CS101', password: 'password123', role: 'student' });
-}
-if (getDB(DB_T).length === 0) {
-  upsert(DB_T, { name: 'Dr. Rajesh Kumar', email: 'admin@gptkquiz.edu', empId: 'ADMIN01', password: 'password123', role: 'teacher' });
-}
-if (getDB(DB_Q).length === 0) {
-  const today = getTodayISODate();
-  const sampleQuizzes = [
-    {
-      id: 'quiz_1',
-      title: 'Database Management & SQL Systems',
-      subject: 'Computer Science',
-      date: today,
-      startTime: '10:00 AM',
-      durationMinutes: 15,
-      questions: [
-        {
-          id: 'q1',
-          question: 'Which SQL command is used to extract data from a relational database?',
-          options: ['GET', 'SELECT', 'EXTRACT', 'QUERY'],
-          correctIndex: 1
-        },
-        {
-          id: 'q2',
-          question: 'What does ACID stand for in database management systems?',
-          options: [
-            'Atomicity, Consistency, Isolation, Durability',
-            'Accuracy, Control, Integrity, Data',
-            'Automated, Cached, Indexed, Distributed',
-            'Action, Commit, Index, Duplicate'
-          ],
-          correctIndex: 0
-        },
-        {
-          id: 'q3',
-          question: 'Which key uniquely identifies each record in a database table?',
-          options: ['Foreign Key', 'Candidate Key', 'Primary Key', 'Secondary Key'],
-          correctIndex: 2
-        },
-        {
-          id: 'q4',
-          question: 'What is the purpose of the SQL GROUP BY clause?',
-          options: [
-            'Sort rows in alphabetical order',
-            'Group rows with identical values into summary rows',
-            'Join two database tables together',
-            'Delete duplicate entries'
-          ],
-          correctIndex: 1
-        }
-      ]
-    },
-    {
-      id: 'quiz_2',
-      title: 'Data Structures & Algorithms',
-      subject: 'Data Structures',
-      date: today,
-      startTime: '02:30 PM',
-      durationMinutes: 20,
-      questions: [
-        {
-          id: 'q1',
-          question: 'What is the worst-case time complexity of QuickSort?',
-          options: ['O(n log n)', 'O(n)', 'O(n^2)', 'O(1)'],
-          correctIndex: 2
-        },
-        {
-          id: 'q2',
-          question: 'Which data structure follows the Last In First Out (LIFO) principle?',
-          options: ['Queue', 'Stack', 'Linked List', 'Binary Tree'],
-          correctIndex: 1
-        }
-      ]
-    },
-    {
-      id: 'quiz_3',
-      title: 'Operating Systems: Concurrency & Threads',
-      subject: 'Operating Systems',
-      date: '2026-09-18',
-      startTime: '11:00 AM',
-      durationMinutes: 25,
-      questions: [
-        {
-          id: 'q1',
-          question: 'What mechanism is used to prevent race conditions among threads?',
-          options: ['Semaphore / Mutex', 'Page Fault', 'Context Switch', 'Spooling'],
-          correctIndex: 0
-        }
-      ]
-    }
-  ];
-  setDB(DB_Q, sampleQuizzes);
-}
-
-if (getDB(DB_R).length === 0) {
-  setDB(DB_R, [
-    {
-      id: 'res_1',
-      studentEmail: 'rahul@student.edu',
-      studentName: 'Rahul Sharma',
-      quizId: 'quiz_1',
-      quizTitle: 'Database Management & SQL Systems',
-      dateTaken: getTodayISODate(),
-      score: 4,
-      totalQuestions: 4,
-      percentage: 100
-    },
-    {
-      id: 'res_2',
-      studentEmail: 'ananya.v@student.edu',
-      studentName: 'Ananya Verma',
-      quizId: 'quiz_1',
-      quizTitle: 'Database Management & SQL Systems',
-      dateTaken: getTodayISODate(),
-      score: 3,
-      totalQuestions: 4,
-      percentage: 75
-    },
-    {
-      id: 'res_3',
-      studentEmail: 'vikram.p@student.edu',
-      studentName: 'Vikram Patel',
-      quizId: 'quiz_2',
-      quizTitle: 'Data Structures & Algorithms',
-      dateTaken: getTodayISODate(),
-      score: 2,
-      totalQuestions: 2,
-      percentage: 100
-    },
-    {
-      id: 'res_4',
-      studentEmail: 'priya.n@student.edu',
-      studentName: 'Priya Nair',
-      quizId: 'quiz_1',
-      quizTitle: 'Database Management & SQL Systems',
-      dateTaken: getTodayISODate(),
-      score: 2,
-      totalQuestions: 4,
-      percentage: 50
-    }
-  ]);
-}
 
 /* SVG Icons */
 const BrandLogo = () => (
@@ -2056,9 +1892,32 @@ const LoginPanel = React.forwardRef(({ onSwitch, onLoggedIn }, ref) => {
       return;
     }
 
-    // Master Admin Login Bypass
+    // Master Admin Login (Firebase Auth persistent)
     if ((email.trim().toLowerCase() === 'admin' || email.trim() === 'admin@gptkquiz.edu') && pw === 'CSE@2026') {
-      onLoggedIn({ uid: 'ADMIN01', name: 'Faculty Administrator', email: 'admin@gptkquiz.edu', role: 'teacher' });
+      setL(true);
+      const adminEmail = 'admin@gptkquiz.edu';
+      const adminPw = 'CSE@2026';
+      
+      firebase.auth().signInWithEmailAndPassword(adminEmail, adminPw)
+        .then(() => {
+          onLoggedIn({ uid: 'ADMIN01', name: 'Faculty Administrator', email: adminEmail, role: 'teacher' });
+        })
+        .catch(err => {
+          // If admin account doesn't exist yet, create it automatically
+          if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+            firebase.auth().createUserWithEmailAndPassword(adminEmail, adminPw)
+              .then(() => {
+                onLoggedIn({ uid: 'ADMIN01', name: 'Faculty Administrator', email: adminEmail, role: 'teacher' });
+              })
+              .catch(createErr => {
+                setErr(createErr.message);
+                setL(false);
+              });
+          } else {
+            setErr(err.message);
+            setL(false);
+          }
+        });
       return;
     }
 
@@ -2376,16 +2235,6 @@ function App() {
   const loginRef  = useRef(null);
   const signupRef = useRef(null);
 
-  useEffect(() => {
-    // ONE-TIME CLEANUP (User requested wiping the local database)
-    const wiped = localStorage.getItem('wiped_db_v1');
-    if (!wiped) {
-      Object.keys(localStorage).forEach(key => {
-        if (key !== 'cookieConsent') localStorage.removeItem(key);
-      });
-      localStorage.setItem('wiped_db_v1', 'true');
-    }
-  }, []);
 
   useEffect(() => {
     const unsubscribe = firebase.auth().onAuthStateChanged(function(firebaseUser) {
