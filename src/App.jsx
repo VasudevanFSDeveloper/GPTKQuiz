@@ -897,7 +897,10 @@ function TeacherDashboard({ user, onLogout }) {
                       <td>
                         <div style={{ fontWeight: 600, color: '#38bdf8' }}>{r.quizTitle}</div>
                       </td>
-                      <td style={{ color: 'rgba(255,255,255,0.6)' }}>{r.dateTaken}</td>
+                      <td style={{ color: 'rgba(255,255,255,0.6)' }}>
+                        {r.dateTaken}
+                        {r.timeTaken && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{r.timeTaken}</div>}
+                      </td>
                       <td style={{ fontWeight: 800, color: '#fff' }}>
                         {r.score} / {r.totalQuestions}
                       </td>
@@ -1829,7 +1832,7 @@ function StudentDashboard({ user, onLogout }) {
                 <div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{r.quizTitle}</div>
                   <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>
-                    Date Completed: {r.dateTaken}
+                    Date Completed: {r.dateTaken}{r.timeTaken ? ` at ${r.timeTaken}` : ''}
                   </div>
                 </div>
 
