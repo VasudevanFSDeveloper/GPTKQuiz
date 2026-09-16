@@ -473,7 +473,12 @@ function TeacherDashboard({ user, onLogout }) {
     setAiMessage(null);
     const importedQs = parseAiText(aiImportText);
     if (importedQs.length > 0) {
-      const merged = [...editQuiz.questions, ...importedQs].filter(q => q.question.trim() || q.options[0] !== 'Option 1');
+      const isBlankQuestion = (q) => {
+        if (q.question.trim() !== '') return false;
+        return !q.options.some(opt => opt.trim() !== '' && !opt.startsWith('Option '));
+      };
+      
+      const merged = [...editQuiz.questions, ...importedQs].filter(q => !isBlankQuestion(q));
       setEditQuiz({ ...editQuiz, questions: merged.length > 0 ? merged : editQuiz.questions });
       setAiImportText('');
       setAiMessage({ type: 'success', text: `Successfully imported ${importedQs.length} questions!` });
