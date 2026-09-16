@@ -542,6 +542,50 @@ function CustomDatePicker({ value, onChange, placeholder = 'Select schedule date
 }
 
 /* TEACHER DASHBOARD */
+const parseAiText = (text) => {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+  const questions = [];
+  let currentQ = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    // Matches "1. Question", "Q1: Question", "**Q1.** Question"
+    if (/^(?:Q?\d+[\.\:\)]|\*\*Q?|Question|Q\:)\s+(.*)/i.test(line)) {
+      if (currentQ) questions.push(currentQ);
+      currentQ = {
+        question: line.replace(/^(?:Q?\d+[\.\:\)]|\*\*Q?\d*[\.\:\)]?\*\*?|Question|Q\:)\s+/i, '').replace(/\*\*$/, '').replace(/^\*\*/, ''),
+        options: [],
+        correctIndex: 0
+      };
+    } 
+    // Matches "A) Option", "a. Option", "(A) Option", "- Option", "**A)** Option"
+    else if (/^(?:[A-D][\.\)\:]|\([A-D]\)|\-|\*\*[A-D][\.\)\:]\*\*)\s+(.*)/i.test(line) && currentQ && currentQ.options.length < 4) {
+      currentQ.options.push(line.replace(/^(?:[A-D][\.\)\:]|\([A-D]\)|\-|\*\*[A-D][\.\)\:]\*\*)\s+/i, '').replace(/\*\*$/, '').replace(/^\*\*/, ''));
+    }
+    // Matches "Answer: A", "Correct Answer: B", "**Answer:** A"
+    else if (/^(?:\*\*?)?(?:Answer|Correct Answer|Ans)(?:\:|\s+)?(?:\*\*?)?\s*([A-D])/i.test(line) && currentQ) {
+      const match = line.match(/^(?:\*\*?)?(?:Answer|Correct Answer|Ans)(?:\:|\s+)?(?:\*\*?)?\s*([A-D])/i);
+      if (match && match[1]) {
+        currentQ.correctIndex = match[1].toUpperCase().charCodeAt(0) - 65;
+      }
+    }
+    else if (currentQ && currentQ.options.length === 0) {
+      currentQ.question += " " + line;
+    }
+  }
+  if (currentQ) questions.push(currentQ);
+  
+  return questions.map((q, idx) => {
+    while (q.options.length < 4) q.options.push(`Option ${q.options.length + 1}`);
+    return {
+      id: 'q_' + Date.now() + '_' + idx,
+      question: q.question,
+      options: q.options.slice(0, 4),
+      correctIndex: Math.max(0, Math.min(3, q.correctIndex))
+    };
+  });
+};
+
 function TeacherDashboard({ user, onLogout }) {
   const [quizzes, setQuizzes] = useState(getDB(DB_Q));
   const [results, setResults] = useState(getDB(DB_R));
@@ -552,6 +596,10 @@ function TeacherDashboard({ user, onLogout }) {
   const [selectedQuizFilter, setSelectedQuizFilter] = useState('all');
   const [searchStudent, setSearchStudent] = useState('');
   const [qrModal, setQrModal] = useState(null);
+  
+  // AI Import State
+  const [showAiImport, setShowAiImport] = useState(false);
+  const [aiImportText, setAiImportText] = useState('');
 
   const todayStr = getTodayDateString();
   const todayISO = getTodayISODate();
@@ -559,6 +607,20 @@ function TeacherDashboard({ user, onLogout }) {
   const refreshData = () => {
     setQuizzes(getDB(DB_Q));
     setResults(getDB(DB_R));
+  };
+
+  const handleProcessAiImport = () => {
+    if (!aiImportText.trim()) return;
+    const importedQs = parseAiText(aiImportText);
+    if (importedQs.length > 0) {
+      const merged = [...editQuiz.questions, ...importedQs].filter(q => q.question.trim() || q.options[0] !== 'Option 1');
+      setEditQuiz({ ...editQuiz, questions: merged.length > 0 ? merged : editQuiz.questions });
+      setAiImportText('');
+      setShowAiImport(false);
+      alert(`Successfully imported ${importedQs.length} questions!`);
+    } else {
+      alert('Could not detect any questions. Please check the format.');
+    }
   };
 
   const handleOpenCreate = () => {
@@ -1077,23 +1139,72 @@ function TeacherDashboard({ user, onLogout }) {
                 <div style={{ fontSize: 16, fontWeight: 800, color: '#38bdf8' }}>
                   Questions ({editQuiz.questions.length})
                 </div>
-                <button
-                  type="button"
-                  className="btn-action btn-secondary"
-                  style={{ width: 'auto', padding: '6px 14px', fontSize: 12 }}
-                  onClick={() => {
-                    const nextQ = {
-                      id: 'q_' + Date.now(),
-                      question: '',
-                      options: ['', '', '', ''],
-                      correctIndex: 0
-                    };
-                    setEditQuiz({ ...editQuiz, questions: [...editQuiz.questions, nextQ] });
-                  }}
-                >
-                  <PlusIcon/> Add Question
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    style={{
+                      width: 'auto', padding: '6px 14px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6,
+                      background: showAiImport ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.1)',
+                      color: showAiImport ? '#d8b4fe' : '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600
+                    }}
+                    onClick={() => setShowAiImport(!showAiImport)}
+                  >
+                    ✨ Import from AI
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-action btn-secondary"
+                    style={{ width: 'auto', padding: '6px 14px', fontSize: 12 }}
+                    onClick={() => {
+                      const nextQ = {
+                        id: 'q_' + Date.now(),
+                        question: '',
+                        options: ['', '', '', ''],
+                        correctIndex: 0
+                      };
+                      setEditQuiz({ ...editQuiz, questions: [...editQuiz.questions, nextQ] });
+                    }}
+                  >
+                    <PlusIcon/> Add Question
+                  </button>
+                </div>
               </div>
+
+              {showAiImport && (
+                <div style={{ background: 'rgba(168, 85, 247, 0.1)', border: '1px solid rgba(168, 85, 247, 0.3)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                  <div style={{ fontSize: 13, color: '#e9d5ff', marginBottom: 8, fontWeight: 600 }}>
+                    Paste questions generated by ChatGPT, Gemini, or Claude.
+                  </div>
+                  <div style={{ fontSize: 12, color: 'rgba(233, 213, 255, 0.7)', marginBottom: 12 }}>
+                    Format example:
+                    <br/>1. What is HTML?
+                    <br/>A) Language
+                    <br/>B) Software
+                    <br/>Answer: A
+                  </div>
+                  <textarea
+                    style={{
+                      width: '100%', height: 120, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: 8, color: '#fff', padding: 10, fontSize: 13, resize: 'vertical'
+                    }}
+                    placeholder="Paste AI text here..."
+                    value={aiImportText}
+                    onChange={e => setAiImportText(e.target.value)}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                    <button
+                      type="button"
+                      onClick={handleProcessAiImport}
+                      style={{
+                        background: 'linear-gradient(135deg, #a855f7, #d946ef)', color: '#fff', border: 'none',
+                        padding: '6px 16px', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 13
+                      }}
+                    >
+                      Process & Add Questions
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {editQuiz.questions.map((q, qIndex) => (
                 <div
