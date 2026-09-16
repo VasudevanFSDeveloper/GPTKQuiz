@@ -2896,6 +2896,68 @@ if (typeof firebase !== 'undefined') {
   }
 }
 
+function ProfileSetupPanel({ user, onComplete }) {
+  const [rollNo, setRollNo] = useState('');
+  const [cls, setCls]       = useState('');
+  const [course, setCourse] = useState('');
+  const [err, setErr]       = useState('');
+  const [l, setL]           = useState(false);
+
+  const save = () => {
+    setErr('');
+    if (!rollNo.trim() || !cls.trim() || !course.trim()) {
+      setErr('Please fill out all fields.');
+      return;
+    }
+    setL(true);
+    const updates = { rollNo: rollNo.trim(), class: cls.trim(), course: course.trim() };
+    firebase.database().ref('users/' + user.uid).update(updates)
+      .then(function() {
+        onComplete({ ...user, ...updates });
+      })
+      .catch(function(error) {
+        setErr(error.message);
+        setL(false);
+      });
+  };
+
+  return (
+    <div className="auth-container">
+      <div className="slide-panel" style={{ position: 'relative', width: 400, opacity: 1, visibility: 'visible' }}>
+        <div className="brand">
+          <div className="brand-icon"><BrandLogo/></div>
+          <span className="brand-name">GPTKQuiz</span>
+        </div>
+        <div className="title" style={{ fontSize: 20 }}>Complete Your Profile</div>
+        <div className="sub">Welcome {user.name}! Please provide your details.</div>
+
+        {err && (
+          <div className="alert err" style={{ marginTop: 16 }}>
+            <AlertIcon/> <span>{err}</span>
+          </div>
+        )}
+
+        <div className="field" style={{ marginTop: 24 }}>
+          <span className="label">Register Number</span>
+          <input className="input" placeholder="e.g. 23CS01" value={rollNo} onChange={e => setRollNo(e.target.value)} />
+        </div>
+        <div className="field">
+          <span className="label">Class</span>
+          <input className="input" placeholder="e.g. CSE-A" value={cls} onChange={e => setCls(e.target.value)} />
+        </div>
+        <div className="field">
+          <span className="label">Course</span>
+          <input className="input" placeholder="e.g. B.Tech Computer Science" value={course} onChange={e => setCourse(e.target.value)} />
+        </div>
+
+        <button className="btn" type="button" onClick={save} disabled={l} style={{ marginTop: 24 }}>
+          {l ? <div className="spinner"></div> : 'Save Profile'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ROOT APP */
 function App() {
   const [screen, setScreen] = useState('login');
@@ -2953,6 +3015,9 @@ function App() {
     if (user.role === 'teacher') {
       return <TeacherDashboard user={user} onLogout={handleLogout}/>;
     } else {
+      if (!user.rollNo) {
+        return <ProfileSetupPanel user={user} onComplete={handleLogin} />;
+      }
       return <StudentDashboard user={user} onLogout={handleLogout}/>;
     }
   }
