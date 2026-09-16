@@ -2881,7 +2881,7 @@ const AlertIcon = () => (
 
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyA9ZCIUwY9y-yjZewp8z-6gfhJSftyslco",
+    : "AIzaSyA9ZCIUwY9y-yjZewp8z-6gfhJSftyslco",
   authDomain: "gptk-quiz.firebaseapp.com",
   databaseURL: "https://gptk-quiz-default-rtdb.firebaseio.com",
   projectId: "gptk-quiz",
@@ -2962,27 +2962,59 @@ function ProfileSetupPanel({ user, onComplete }) {
 /* ROOT APP */
 function App() {
   const [screen, setScreen] = useState('login');
-  const [user,   setUser]   = useState(() => {
-    try {
-      const saved = localStorage.getItem(DB_SESSION);
-      return saved ? JSON.parse(saved) : null;
-    } catch (e) {
-      return null;
-    }
-  });
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [containerHeight, setContainerHeight] = useState(undefined);
 
   const loginRef  = useRef(null);
   const signupRef = useRef(null);
 
+  useEffect(() => {
+    const unsubscribe = firebase.auth().onAuthStateChanged(function(firebaseUser) {
+      if (firebaseUser) {
+        // Master Admin Check
+        if (firebaseUser.email === 'admin@gptkquiz.edu' || firebaseUser.uid === 'ADMIN01') {
+          setUser({ uid: firebaseUser.uid, name: 'Faculty Administrator', email: firebaseUser.email, role: 'teacher' });
+          setLoading(false);
+          return;
+        }
+
+        firebase.database().ref('users/' + firebaseUser.uid).once('value')
+          .then(function(snapshot) {
+            var data = snapshot.val() || {};
+            setUser({
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              name: data.name || firebaseUser.displayName || 'Student',
+              role: data.role || 'student',
+              rollNo: data.rollNo || '',
+              class: data.class || '',
+              course: data.course || ''
+            });
+            setLoading(false);
+          })
+          .catch(function(err) {
+            console.error(err);
+            setUser(null);
+            setLoading(false);
+          });
+      } else {
+        setUser(null);
+        setLoading(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   const handleLogin = (u) => {
-    localStorage.setItem(DB_SESSION, JSON.stringify(u));
+    // Optimistic update; firebase auth state will also catch up
     setUser(u);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem(DB_SESSION);
-    setUser(null);
+    firebase.auth().signOut().then(function() {
+      setUser(null);
+    });
   };
 
   useEffect(() => {
@@ -3012,6 +3044,10 @@ function App() {
   }, [screen, user]);
 
   /* Render Dashboards when logged in */
+  if (loading) {
+    return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>Loading GPTKQuiz...</div>;
+  }
+
   if (user) {
     if (user.role === 'teacher') {
       return <TeacherDashboard user={user} onLogout={handleLogout}/>;
