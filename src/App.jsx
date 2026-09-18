@@ -1060,7 +1060,7 @@ function TeacherDashboard({ user, onLogout }) {
                     </div>
                     <div style={{ flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.8)', background: 'rgba(56,189,248,0.08)', padding: 12, borderRadius: 10, border: '1px dashed rgba(56,189,248,0.3)' }}>
                       <strong style={{ color: '#38bdf8' }}>Copy this prompt to ChatGPT/Gemini:</strong>
-                      <div style={{ marginTop: 6, fontFamily: 'monospace', color: '#fff', fontSize: 11 }}>
+                      <div style={{ marginTop: 6, fontFamily: 'inherit', color: 'rgba(255,255,255,0.9)', fontSize: 11.5, lineHeight: 1.4 }}>
                         Create a multiple-choice quiz about [TOPIC] with [NUMBER] questions. Provide 4 options per question (A, B, C, D). Format exactly like this: 1. Question? A) Option B) Option C) Option D) Option Answer: A
                       </div>
                       <button
@@ -1071,7 +1071,7 @@ function TeacherDashboard({ user, onLogout }) {
                           e.target.innerText = 'Copied!';
                           setTimeout(() => e.target.innerText = old, 2000);
                         }}
-                        style={{ background: '#38bdf8', color: '#0f172a', border: 'none', padding: '6px 12px', borderRadius: 6, fontSize: 11.5, marginTop: 10, cursor: 'pointer', fontWeight: 800, transition: 'all 0.2s' }}
+                        style={{ fontFamily: 'inherit', background: '#38bdf8', color: '#0f172a', border: 'none', padding: '6px 12px', borderRadius: 6, fontSize: 11.5, marginTop: 10, cursor: 'pointer', fontWeight: 800, transition: 'all 0.2s' }}
                       >
                         Copy Prompt
                       </button>
