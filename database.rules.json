@@ -1,0 +1,44 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "users": {
+      "$uid": {
+        ".read": "auth !== null && auth.uid === $uid",
+        ".write": "auth !== null && auth.uid === $uid"
+      }
+    },
+    "quizzes": {
+      ".read": "auth !== null",
+      "$quizId": {
+        ".write": "auth !== null && (root.child('users/' + auth.uid + '/role').val() === 'teacher' || auth.token.email === 'admin@gptkquiz.edu')"
+      }
+    },
+    "quiz_keys": {
+      ".read": "auth !== null && (root.child('users/' + auth.uid + '/role').val() === 'teacher' || auth.token.email === 'admin@gptkquiz.edu')",
+      "$quizId": {
+        ".write": "auth !== null && (root.child('users/' + auth.uid + '/role').val() === 'teacher' || auth.token.email === 'admin@gptkquiz.edu')"
+      }
+    },
+    "results": {
+      ".read": "auth !== null",
+      "$resultId": {
+        ".write": "auth !== null && !data.exists()",
+        ".validate": "newData.hasChildren(['studentEmail', 'studentName', 'quizId'])"
+      }
+    },
+    "active_sessions": {
+      "$sessionKey": {
+        ".read": "auth !== null",
+        ".write": "auth !== null"
+      }
+    },
+    "audit_log": {
+      ".read": "auth !== null && (root.child('users/' + auth.uid + '/role').val() === 'teacher' || auth.token.email === 'admin@gptkquiz.edu')",
+      "$logId": {
+        ".write": "auth !== null && (root.child('users/' + auth.uid + '/role').val() === 'teacher' || auth.token.email === 'admin@gptkquiz.edu')",
+        ".validate": "newData.hasChildren(['action', 'teacherId', 'timestamp'])"
+      }
+    }
+  }
+}

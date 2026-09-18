@@ -128,7 +128,7 @@ const printReport = (reportTitle, meta, headers, rows) => {
     '@media print{@page{margin:1.5cm}}' +
     '</style></head><body>' +
     '<h1>' + reportTitle + '</h1>' +
-    '<div class="meta">' + meta + ' • Generated on ' + new Date().toLocaleString() + '</div>' +
+    '<div class="meta">' + meta + ' ? Generated on ' + new Date().toLocaleString() + '</div>' +
     '<table><thead><tr>' + headerCells + '</tr></thead>' +
     '<tbody>' + bodyRows + '</tbody></table>' +
     '<script>window.onload=function(){window.print();}</' + 'script>' +
@@ -359,11 +359,11 @@ function CustomDatePicker({ value, onChange, placeholder = 'Select schedule date
       {open && (
         <div className="calendar-popover">
           <div className="cal-head">
-            <button type="button" className="cal-nav-btn" onClick={prevMonth}>‹</button>
+            <button type="button" className="cal-nav-btn" onClick={prevMonth}>?</button>
             <div className="cal-title">
               {monthNames[viewMonth]} {viewYear}
             </div>
-            <button type="button" className="cal-nav-btn" onClick={nextMonth}>›</button>
+            <button type="button" className="cal-nav-btn" onClick={nextMonth}>?</button>
           </div>
 
           <div className="cal-grid-weekdays">
@@ -416,6 +416,39 @@ function CustomDatePicker({ value, onChange, placeholder = 'Select schedule date
 }
 
 /* TEACHER DASHBOARD */
+
+/* SANITIZE: Strip any HTML/script tags from user-pasted text before storing */
+const sanitizeText = (str) => {
+  if (!str || typeof str !== 'string') return '';
+  return str
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+\s*=/gi, '')
+    .trim();
+};
+
+/* SESSION TIMEOUT HOOK: auto-logout after X minutes of inactivity */
+function useSessionTimeout(onTimeout, minutes) {
+  const timerRef = React.useRef(null);
+  const warningRef = React.useRef(null);
+  const [showTimeoutWarning, setShowTimeoutWarning] = React.useState(false);
+  const resetTimer = React.useCallback(() => {
+    clearTimeout(timerRef.current); clearTimeout(warningRef.current);
+    setShowTimeoutWarning(false);
+    const warnMs = (minutes * 60 - 60) * 1000;
+    const logoutMs = minutes * 60 * 1000;
+    warningRef.current = setTimeout(() => setShowTimeoutWarning(true), warnMs);
+    timerRef.current = setTimeout(() => { setShowTimeoutWarning(false); onTimeout(); }, logoutMs);
+  }, [minutes, onTimeout]);
+  React.useEffect(() => {
+    const events = ['mousemove', 'keypress', 'click', 'scroll', 'touchstart'];
+    events.forEach(e => window.addEventListener(e, resetTimer, { passive: true }));
+    resetTimer();
+    return () => { events.forEach(e => window.removeEventListener(e, resetTimer)); clearTimeout(timerRef.current); clearTimeout(warningRef.current); };
+  }, [resetTimer]);
+  return { showTimeoutWarning };
+}
 const parseAiText = (text) => {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l);
   const questions = [];
@@ -478,8 +511,12 @@ function TeacherDashboard({ user, onLogout }) {
   const [searchStudent, setSearchStudent] = useState('');
   const [qrModal, setQrModal] = useState(null);
   
+  // Session timeout: 15 min of inactivity auto-logs out teacher (sensitive data)
+  const { showTimeoutWarning: showTeacherTimeout } = useSessionTimeout(onLogout, 15);
+
   // AI Import State
   const [showAiImport, setShowAiImport] = useState(false);
+  const [auditLog, setAuditLog] = useState([]);
   const [aiImportText, setAiImportText] = useState('');
   const [aiMessage, setAiMessage] = useState(null);
 
@@ -498,6 +535,14 @@ function TeacherDashboard({ user, onLogout }) {
     const rListener = rRef.on('value', snap => {
       const data = snap.val() || {};
       setResults(Object.values(data));
+    });
+
+    // Fetch audit log for teachers
+    const aRef = firebase.database().ref('audit_log');
+    const aListener = aRef.on('value', snap => {
+      const data = snap.val() || {};
+      const entries = Object.values(data).sort((a,b) => b.timestamp - a.timestamp);
+      setAuditLog(entries);
     });
 
     return () => {
@@ -555,7 +600,18 @@ function TeacherDashboard({ user, onLogout }) {
 
   const handleDelete = (quizId) => {
     if (confirm('Are you sure you want to delete this quiz?')) {
-      firebase.database().ref('quizzes/' + quizId).remove();
+      const db = firebase.database();
+      const quiz = quizzes.find(q => q.id === quizId);
+      const auditEntry = {
+        action: 'quiz_deleted', teacherId: user.uid, teacherName: user.name,
+        quizId: quizId, quizTitle: quiz ? quiz.title : 'Unknown',
+        timestamp: Date.now()
+      };
+      Promise.all([
+        db.ref('quizzes/' + quizId).remove(),
+        db.ref('quiz_keys/' + quizId).remove(),
+        db.ref('audit_log/' + Date.now() + '_' + user.uid.slice(0,6)).set(auditEntry)
+      ]);
     }
   };
 
@@ -579,12 +635,41 @@ function TeacherDashboard({ user, onLogout }) {
     if (!q.joinCode) {
       q.joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     }
+    const isNew = !q.lastEditedAt;
     q.lastEditedAt = Date.now();
-    
-    firebase.database().ref('quizzes/' + q.id).set(q).then(() => {
-      setModalOpen(false);
-      setEditQuiz(null);
-    });
+
+    // Sanitize all text fields before storing
+    q.title = sanitizeText(q.title);
+    q.subject = sanitizeText(q.subject);
+    q.questions = q.questions.map(qs => ({
+      ...qs,
+      question: sanitizeText(qs.question),
+      options: qs.options.map(o => sanitizeText(o))
+    }));
+
+    // Extract answer keys into protected /quiz_keys/ path (students cannot access)
+    const answerKeys = q.questions.map(qs => qs.correctIndex);
+    const publicQuiz = {
+      ...q,
+      questions: q.questions.map(qs => {
+        const { correctIndex, ...publicQ } = qs;
+        return publicQ;
+      })
+    };
+
+    const db = firebase.database();
+    const auditEntry = {
+      action: isNew ? 'quiz_created' : 'quiz_edited',
+      teacherId: user.uid, teacherName: user.name,
+      quizId: q.id, quizTitle: q.title,
+      timestamp: Date.now(), questionCount: q.questions.length
+    };
+
+    Promise.all([
+      db.ref('quizzes/' + q.id).set(publicQuiz),
+      db.ref('quiz_keys/' + q.id).set({ keys: answerKeys, quizId: q.id }),
+      db.ref('audit_log/' + Date.now() + '_' + user.uid.slice(0,6)).set(auditEntry)
+    ]).then(() => { setModalOpen(false); setEditQuiz(null); });
   };
 
   const displayedQuizzes = todayFilter === 'today'
@@ -635,8 +720,8 @@ function TeacherDashboard({ user, onLogout }) {
       `<span class="badge ${r.percentage >= 50 ? 'pass' : 'fail'}">${r.percentage >= 80 ? 'Distinction' : r.percentage >= 50 ? 'Passed' : 'Needs Review'}</span>`
     ]);
     printReport(
-      'GPTKQuiz — Student Examination Performance Report',
-      `Faculty: ${user.name} • Total Submissions: ${totalSubmissions} • Pass Rate: ${passRate}%`,
+      'GPTKQuiz ? Student Examination Performance Report',
+      `Faculty: ${user.name} ? Total Submissions: ${totalSubmissions} ? Pass Rate: ${passRate}%`,
       headers,
       rows
     );
@@ -647,8 +732,8 @@ function TeacherDashboard({ user, onLogout }) {
     const quizName = selectedQuizFilter === 'all' ? 'All Quizzes' : ((quizFound && quizFound.title) || selectedQuizFilter);
     const topScorers = [...filteredResults].sort((a, b) => b.percentage - a.percentage).slice(0, 3);
     
-    let text = `*GPTKQuiz — Examination Performance Report*\n`;
-    text += `━━━━━━━━━━━━━━━━━━━━━\n`;
+    let text = `*GPTKQuiz ? Examination Performance Report*\n`;
+    text += `?????????????????????\n`;
     text += `*Quiz:* ${quizName}\n`;
     text += `*Faculty:* ${user.name}\n`;
     text += `*Date:* ${todayStr}\n`;
@@ -658,7 +743,7 @@ function TeacherDashboard({ user, onLogout }) {
     if (topScorers.length > 0) {
       text += `*Top Performers:*\n`;
       topScorers.forEach((s, idx) => {
-        text += `${idx + 1}. ${s.studentName} — ${s.percentage}% (${s.score}/${s.totalQuestions})\n`;
+        text += `${idx + 1}. ${s.studentName} ? ${s.percentage}% (${s.score}/${s.totalQuestions})\n`;
       });
       text += `\n`;
     }
@@ -671,41 +756,39 @@ function TeacherDashboard({ user, onLogout }) {
     });
   };
 
-    const handleOpenStudentWhatsAppQR = (r) => {
-    let text = *GPTKQuiz Official Scorecard*\n;
-    text += ?????????????????????\n;
-    text += *Student Name:* \n;
-    text += *Roll / Email:* \n;
-    text += *Quiz:* \n;
-    text += *Date Taken:* \n;
-    text += *Score:*  / \n;
-    text += *Accuracy:* %\n;
-    text += *Grade Status:* \n\n;
-    text += _Verified by Faculty: _;
-
-    setQrModal({
-      title: WhatsApp Result for ,
-      subtitle: Scan with your phone or WhatsApp scanner to send 's result card to their WhatsApp.,
-      text
-    });
+  const handleOpenStudentWhatsAppQR = (r) => {
+    let text = `*GPTKQuiz Official Scorecard*\n`;
+    text += `?????????????????????\n`;
+    text += `*Student Name:* ${r.studentName}\n`;
+    text += `*Roll / Email:* ${r.studentEmail}\n`;
+    text += `*Quiz:* ${r.quizTitle}\n`;
+    text += `*Date Taken:* ${r.dateTaken}\n`;
+    text += `*Score:* ${r.score} / ${r.totalQuestions}\n`;
+    text += `*Accuracy:* ${r.percentage}%\n`;
+    text += `*Grade Status:* ${r.percentage >= 80 ? 'Distinction' : r.percentage >= 50 ? 'Passed' : 'Needs Review'}\n\n`;
+    text += `_Verified by Faculty: ${user.name}_`;
+    setQrModal({ title: `WhatsApp Result for ${r.studentName}`, subtitle: `Scan with your phone to send ${r.studentName}'s result card.`, text });
   };
 
   const handleOpenShareQuiz = (q) => {
-    const url = ${window.location.origin}?join=;
-    let text = *Join Quiz: *\n;
-    text += ?????????????????????\n;
-    text += *Join Code:* \n;
-    text += *Direct Link:* \n;
-    setQrModal({
-      title: 'Share Quiz Invite',
-      subtitle: 'Send the join code or direct link to students to start the test.',
-      text,
-      directLink: url
-    });
+    const url = `?join=${q.joinCode}`;
+    let text = `*Join Quiz: ${q.title}*\n`;
+    text += `?????????????????????\n`;
+    text += `*Join Code:* ${q.joinCode}\n`;
+    text += `*Direct Link:* ${url}\n`;
+    setQrModal({ title: 'Share Quiz Invite', subtitle: 'Send the join code or direct link to students.', text, directLink: url });
   };;
 
   return (
     <div className="dash-wrap">
+      {/* Session Timeout Warning Banner */}
+      {showTeacherTimeout && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: 'rgba(239,68,68,0.95)', padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backdropFilter: 'blur(8px)' }}>
+          <span style={{ color: '#fff', fontWeight: 700 }}>?? Session expiring in 60 seconds due to inactivity. Move mouse or click to stay logged in.</span>
+          <button onClick={onLogout} style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }}>Logout Now</button>
+        </div>
+      )}
+
       {/* Top Header */}
       <header className="top-nav">
         <div className="nav-left">
@@ -716,7 +799,7 @@ function TeacherDashboard({ user, onLogout }) {
         </div>
 
         <div className="nav-center">
-          <CalendarIcon/> <span>{todayStr} &nbsp;•&nbsp; <LiveISTClock/></span>
+          <CalendarIcon/> <span>{todayStr} &nbsp;?&nbsp; <LiveISTClock/></span>
         </div>
 
         <div className="nav-right">
@@ -745,6 +828,14 @@ function TeacherDashboard({ user, onLogout }) {
             onClick={() => setActiveTab('results')}
           >
             <WhatsAppIcon/> Student Results &amp; WhatsApp Hub ({results.length})
+          </button>
+          <button
+            className={`btn-action ${activeTab === 'audit' ? 'btn-start' : 'btn-secondary'}`}
+            style={{ width: 'auto', padding: '9px 18px', display: 'flex', alignItems: 'center', gap: 8 }}
+            onClick={() => setActiveTab('audit')}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+            Audit Log ({auditLog.length})
           </button>
         </div>
 
@@ -948,7 +1039,7 @@ function TeacherDashboard({ user, onLogout }) {
                   </div>
                 </div>
                 <div style={{ flex: 1, minWidth: 200, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: 16, padding: 20 }}>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, fontWeight: 700 }}>Pass Rate (>50%)</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, fontWeight: 700 }}>Pass Rate (&gt;50%)</div>
                   <div className="font-orbitron" style={{ fontSize: 32, fontWeight: 700, color: passRate >= 50 ? '#4ade80' : '#f87171' }}>{passRate}%</div>
                   <div style={{ height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, marginTop: 12, overflow: 'hidden' }}>
                     <div style={{ width: passRate + '%', height: '100%', background: passRate >= 50 ? '#4ade80' : '#f87171' }} />
@@ -1029,6 +1120,42 @@ function TeacherDashboard({ user, onLogout }) {
         </div>
       )}
 
+      {/* Audit Log Panel */}
+      {activeTab === 'audit' && (
+        <div className="glass-card">
+          <div className="sec-title" style={{ marginBottom: 20 }}>
+            <span>Activity Audit Log</span>
+            <span className="sec-badge badge-live">{auditLog.length} entries</span>
+          </div>
+          {auditLog.length === 0 ? (
+            <div style={{ padding: '36px 20px', textAlign: 'center', color: 'rgba(255,255,255,0.45)' }}>
+              No audit log entries yet. Actions like quiz create, edit, and delete will appear here.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {auditLog.map((entry, i) => {
+                const actionColor = entry.action === 'quiz_deleted' ? '#f87171' : entry.action === 'quiz_created' ? '#4ade80' : '#38bdf8';
+                const actionLabel = entry.action === 'quiz_created' ? 'Created' : entry.action === 'quiz_edited' ? 'Edited' : 'Deleted';
+                const dt = new Date(entry.timestamp);
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 20, background: `${actionColor}22`, color: actionColor, minWidth: 60, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 0.5 }}>{actionLabel}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, color: '#fff', fontSize: 14 }}>{entry.quizTitle}</div>
+                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>by {entry.teacherName} &bull; {entry.questionCount ? `${entry.questionCount} questions` : ''}</div>
+                    </div>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', textAlign: 'right', minWidth: 110 }}>
+                      <div>{dt.toLocaleDateString('en-IN')}</div>
+                      <div>{dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Quiz Editor / Creator Modal */}
       {modalOpen && editQuiz && (
         <div className="modal-overlay" onClick={() => setModalOpen(false)}>
@@ -1041,7 +1168,7 @@ function TeacherDashboard({ user, onLogout }) {
                 onClick={() => setModalOpen(false)}
                 style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: 20 }}
               >
-                ✕
+                ?
               </button>
             </div>
 
@@ -1338,6 +1465,35 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
   const [qrModal, setQrModal] = useState(null);
 
     const [leaderboard, setLeaderboard] = useState([]);
+  const [questionStartTime, setQuestionStartTime] = useState(Date.now());
+  const [questionTimings, setQuestionTimings] = useState({});
+  const [sessionId] = useState(() => Math.random().toString(36).slice(2));
+
+  // One-device session lock: write session token on mount, listen for conflicts
+  useEffect(() => {
+    if (!studentUser || !quiz) return;
+    const sessionKey = quiz.id + '_' + studentUser.uid;
+    const sessionRef = firebase.database().ref('active_sessions/' + sessionKey);
+    
+    sessionRef.set({ sessionId, uid: studentUser.uid, ts: Date.now() });
+    
+    const listener = sessionRef.on('value', snap => {
+      if (snap.exists() && snap.val().sessionId !== sessionId) {
+        // Another device took over ? auto-submit and notify
+        alert('This quiz was opened on another device. This session has been terminated.');
+        handleSubmit(false, true);
+      }
+    });
+    
+    // Cleanup on quiz exit
+    const onDisconnectRef = sessionRef.onDisconnect();
+    onDisconnectRef.remove();
+    
+    return () => {
+      sessionRef.off('value', listener);
+      sessionRef.remove();
+    };
+  }, []);
 
   // Animate score count-up when result arrives and fetch leaderboard
   useEffect(() => {
@@ -1372,6 +1528,23 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
   const [warnings, setWarnings] = useState(0);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [showReview, setShowReview] = useState(false);
+  const [shuffleMap, setShuffleMap] = useState(null); // question index mapping for randomization
+  // Randomize question order per student when quiz starts
+  useEffect(() => {
+    if (!hasStarted || shuffleMap) return;
+    // Seed using studentUid + quizId for consistent order per student
+    const seedStr = (studentUser.uid || '') + quiz.id;
+    let seed = seedStr.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+    const seededRand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+    const indices = quiz.questions.map((_, i) => i);
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(seededRand() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+    setShuffleMap(indices);
+    setQuestionStartTime(Date.now());
+  }, [hasStarted]);
+
 
   // Pre-start countdown
   useEffect(() => {
@@ -1405,83 +1578,137 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
     return () => clearInterval(timer);
   }, [hasStarted, isSubmitted]);
 
-  // Anti-cheat Visibility Listener
+  // Anti-cheat: Multi-layer detection (visibilitychange + blur + fullscreen + devtools)
   useEffect(() => {
     if (!hasStarted || isSubmitted) return;
-    
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        setWarnings(w => {
-          const newWarnings = w + 1;
-          if (newWarnings >= 2) {
-            // Fail and auto-submit
-            handleSubmit(false, true); 
-          } else {
-            setShowWarningModal(true);
-          }
-          return newWarnings;
-        });
+
+    const triggerWarning = () => {
+      setWarnings(w => {
+        const n = w + 1;
+        if (n >= 2) { handleSubmit(false, true); }
+        else { setShowWarningModal(true); }
+        return n;
+      });
+    };
+
+    // 1. Tab switch / visibility change
+    const handleVisibilityChange = () => { if (document.hidden) triggerWarning(); };
+
+    // 2. Window blur (Alt+Tab, click another window, split-screen)
+    const handleBlur = () => triggerWarning();
+
+    // 3. Fullscreen exit
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) triggerWarning();
+    };
+
+    // 4. DevTools heuristic (resize: sidebar devtools widens outer > inner significantly)
+    const handleResize = () => {
+      if (window.outerWidth - window.innerWidth > 200 || window.outerHeight - window.innerHeight > 200) {
+        triggerWarning();
       }
     };
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleBlur);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    window.addEventListener('resize', handleResize);
+
+    // Enter fullscreen on quiz start
+    if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleBlur);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      window.removeEventListener('resize', handleResize);
+      // Exit fullscreen on unmount
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+    };
   }, [hasStarted, isSubmitted]);
 
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
   const timeFormatted = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
-  const currentQ = quiz.questions[currentIdx];
+  // Use shuffleMap to get the actual question for the current display index
+  const actualIdx = (shuffleMap && shuffleMap[currentIdx] !== undefined) ? shuffleMap[currentIdx] : currentIdx;
+  const currentQ = quiz.questions[actualIdx];
 
   const handleSelectOption = (optIdx) => {
+    // Record time-per-question (flag if answered in < 2 seconds)
+    const timeSpent = Date.now() - questionStartTime;
+    setQuestionTimings(prev => ({ ...prev, [currentIdx]: { timeSpentMs: timeSpent, flagged: timeSpent < 2000 } }));
+    setQuestionStartTime(Date.now());
     if (isSubmitted || !hasStarted) return;
     setSelectedAnswers({ ...selectedAnswers, [currentIdx]: optIdx });
   };
 
   const handleSubmit = (timeout = false, antiCheatFail = false) => {
     if (isSubmitted) return;
-    
-    let correct = 0;
-    if (!antiCheatFail) {
-      quiz.questions.forEach((q, idx) => {
-        if (selectedAnswers[idx] === q.correctIndex) {
-          correct++;
-        }
-      });
-    }
-    
-    const total = quiz.questions.length;
-    const pct = antiCheatFail ? 0 : Math.round((correct / total) * 100);
+    setIsSubmitted(true);
+    setShowWarningModal(false);
 
-    const result = {
-      id: 'res_' + Date.now(),
+    const total = quiz.questions.length;
+    const resultId = 'res_' + Date.now() + '_' + (studentUser.uid || '').slice(0,6);
+
+    // Store selectedAnswers + metadata first (no score yet ? score computed after key fetch)
+    const partialResult = {
+      id: resultId,
       studentEmail: studentUser.email || studentUser.rollNo,
       studentName: studentUser.name,
       quizId: quiz.id,
       quizTitle: quiz.title,
       dateTaken: getTodayISODate(),
       timeTaken: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
-      score: antiCheatFail ? 0 : correct,
       totalQuestions: total,
-      percentage: pct,
       remarks: antiCheatFail ? 'Disqualified (Tab Switching)' : 'Completed',
       terminationReason: antiCheatFail ? 'tab_switch' : 'completed',
-      studentAnswers: selectedAnswers,
+      selectedAnswers: antiCheatFail ? {} : selectedAnswers,
       quizVersion: quiz.lastEditedAt || 0
     };
 
-    firebase.database().ref('results/' + result.id).set(result).then(() => {
-      setScoreResult(result);
-      setIsSubmitted(true);
-      setShowWarningModal(false);
-    });
+    const db = firebase.database();
+
+    if (antiCheatFail) {
+      // Auto-fail: no need to fetch keys
+      const failedResult = { ...partialResult, score: 0, percentage: 0 };
+      db.ref('results/' + resultId).set(failedResult).then(() => {
+        setScoreResult(failedResult);
+      });
+    } else {
+      // Fetch answer keys AFTER submission, then compute score
+      db.ref('quiz_keys/' + quiz.id).once('value').then(snap => {
+        let score = 0;
+        if (snap.exists()) {
+          const keys = snap.val().keys || [];
+          keys.forEach((correctIdx, idx) => {
+            if (selectedAnswers[idx] === correctIdx) score++;
+          });
+        } else {
+          // Fallback: quiz_keys not found (legacy quiz), score 0 safely
+          score = 0;
+        }
+        const pct = Math.round((score / total) * 100);
+        const finalResult = { ...partialResult, score, percentage: pct };
+        db.ref('results/' + resultId).set(finalResult).then(() => {
+          setScoreResult(finalResult);
+        });
+      });
+    }
+
+    // Clear one-device session lock
+    db.ref('active_sessions/' + quiz.id + '_' + studentUser.uid).remove();
   };
 
   const handleShareWhatsApp = () => {
     if (!scoreResult) return;
     let text = `*My GPTKQuiz Test Result*\n`;
-    text += `━━━━━━━━━━━━━━━━━━━━━\n`;
+    text += `?????????????????????\n`;
     text += `*Student:* ${studentUser.name}\n`;
     text += `*Roll / Email:* ${studentUser.email || studentUser.rollNo}\n`;
     text += `*Quiz:* ${quiz.title}\n`;
@@ -1500,7 +1727,7 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
 
   return (
     <div className="modal-overlay">
-      <div className="modal-card" style={{ maxWidth: 640, position: 'relative', overflow: 'hidden' }}>
+      <div className="modal-card" style={{ maxWidth: 640, position: 'relative', overflow: 'hidden', userSelect: 'none' }} onContextMenu={e => e.preventDefault()} onCopy={e => e.preventDefault()} onCut={e => e.preventDefault()} onPaste={e => e.preventDefault()}>
         
         {/* Anti-cheat Warning Modal */}
         {showWarningModal && !isSubmitted && (
@@ -1653,7 +1880,7 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
                                 </div>
                                 {opt}
                                 {isActualCorrect && <span style={{ marginLeft: 'auto', display: 'flex' }}><CheckIcon/></span>}
-                                {isSelected && !isCorrect && <span style={{ marginLeft: 'auto' }}>❌</span>}
+                                {isSelected && !isCorrect && <span style={{ marginLeft: 'auto' }}>?</span>}
                               </div>
                             );
                           })}
@@ -1733,7 +1960,7 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {leaderboard.map((lb, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: i === 0 ? 'rgba(245, 158, 11, 0.1)' : 'rgba(255,255,255,0.03)', border: 1px solid , borderRadius: 10 }}>
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: i === 0 ? 'rgba(245, 158, 11, 0.1)' : 'rgba(255,255,255,0.03)', border: `1px solid `, borderRadius: 10 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <div style={{ width: 24, height: 24, borderRadius: '50%', background: i === 0 ? '#f59e0b' : i === 1 ? '#94a3b8' : i === 2 ? '#b45309' : 'rgba(255,255,255,0.1)', color: i < 3 ? '#000' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800 }}>{i + 1}</div>
                             <div style={{ fontSize: 13.5, fontWeight: 700, color: i === 0 ? '#fbbf24' : '#fff' }}>{lb.studentName}</div>
@@ -1776,6 +2003,9 @@ function StudentDashboard({ user, onLogout }) {
   const [joinCodeInput, setJoinCodeInput] = useState('');
   const [joinError, setJoinError] = useState('');
 
+  // Session timeout: 30 min of inactivity auto-logs out student
+  const { showTimeoutWarning: showStudentTimeout } = useSessionTimeout(onLogout, 30);
+
   const todayStr = getTodayDateString();
   const todayISO = getTodayISODate();
 
@@ -1791,10 +2021,28 @@ function StudentDashboard({ user, onLogout }) {
     }
   }, [quizzes]);
 
+  // Quiz expiry check: prevent starting quiz after its time window has passed
+  const isQuizExpired = (q) => {
+    try {
+      const [year, month, day] = q.date.split('-').map(Number);
+      const [time, ampm] = (q.startTime || '').split(' ');
+      let [h, m] = (time || '10:00').split(':').map(Number);
+      if (ampm === 'PM' && h !== 12) h += 12;
+      if (ampm === 'AM' && h === 12) h = 0;
+      const quizStart = new Date(year, month - 1, day, h, m, 0);
+      const quizEnd = new Date(quizStart.getTime() + (q.durationMinutes + 30) * 60000); // 30min grace
+      return new Date() > quizEnd;
+    } catch { return false; }
+  };
+
   const handleJoinSubmit = () => {
     if(!joinCodeInput.trim()) return;
     const target = quizzes.find(q => q.joinCode && q.joinCode.toUpperCase() === joinCodeInput.trim().toUpperCase());
     if(target) {
+      if (isQuizExpired(target)) {
+        setJoinError('This examination has ended. The quiz window is closed.');
+        return;
+      }
       setActiveQuiz(target);
       setJoinError('');
     } else {
@@ -1816,6 +2064,14 @@ function StudentDashboard({ user, onLogout }) {
       setResults(Object.values(data));
     });
 
+    // Fetch audit log for teachers
+    const aRef = firebase.database().ref('audit_log');
+    const aListener = aRef.on('value', snap => {
+      const data = snap.val() || {};
+      const entries = Object.values(data).sort((a,b) => b.timestamp - a.timestamp);
+      setAuditLog(entries);
+    });
+
     return () => {
       qRef.off('value', qListener);
       rRef.off('value', rListener);
@@ -1828,7 +2084,7 @@ function StudentDashboard({ user, onLogout }) {
 
   const handleShareResultQR = (r) => {
     let text = `*My GPTKQuiz Official Scorecard*\n`;
-    text += `━━━━━━━━━━━━━━━━━━━━━\n`;
+    text += `?????????????????????\n`;
     text += `*Student Name:* ${user.name}\n`;
     text += `*Roll / Email:* ${user.rollNo || user.email}\n`;
     text += `*Quiz:* ${r.quizTitle}\n`;
@@ -1868,8 +2124,8 @@ function StudentDashboard({ user, onLogout }) {
       `<span class="badge ${r.percentage >= 50 ? 'pass' : 'fail'}">${r.percentage >= 80 ? 'Distinction' : r.percentage >= 50 ? 'Passed' : 'Needs Review'}</span>`
     ]);
     printReport(
-      `GPTKQuiz — Official Grade Report for ${user.name}`,
-      `Student ID: ${user.rollNo || user.email} • Tests Completed: ${studentResults.length}`,
+      `GPTKQuiz ? Official Grade Report for ${user.name}`,
+      `Student ID: ${user.rollNo || user.email} ? Tests Completed: ${studentResults.length}`,
       headers,
       rows
     );
@@ -1887,7 +2143,7 @@ function StudentDashboard({ user, onLogout }) {
         </div>
 
         <div className="nav-center">
-          <CalendarIcon/> <span>{todayStr} &nbsp;•&nbsp; <LiveISTClock/></span>
+          <CalendarIcon/> <span>{todayStr} &nbsp;?&nbsp; <LiveISTClock/></span>
         </div>
 
         <div className="nav-right">
@@ -1974,9 +2230,11 @@ function StudentDashboard({ user, onLogout }) {
                   ) : (
                     <button
                       className="btn-action btn-start"
-                      onClick={() => setActiveQuiz(q)}
+                      disabled={isQuizExpired(q)}
+                      onClick={() => !isQuizExpired(q) && setActiveQuiz(q)}
+                      style={isQuizExpired(q) ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
                     >
-                      Start Quiz Now
+                      {isQuizExpired(q) ? 'Examination Ended' : 'Start Quiz Now'}
                     </button>
                   )}
                 </div>
