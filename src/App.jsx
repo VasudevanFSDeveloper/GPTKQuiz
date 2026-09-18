@@ -780,7 +780,7 @@ function TeacherDashboard({ user, onLogout }) {
   };;
 
   return (
-    <div className="dash-wrap">
+    <div className="dash-wrap" role="main">
       {/* Session Timeout Warning Banner */}
       {showTeacherTimeout && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: 'rgba(239,68,68,0.95)', padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backdropFilter: 'blur(8px)' }}>
@@ -952,6 +952,7 @@ function TeacherDashboard({ user, onLogout }) {
                         </button>
                       <button
                         className="btn-action btn-danger"
+                        aria-label="Delete quiz"
                         style={{ width: 'auto', padding: '8px 12px' }}
                         onClick={() => handleDelete(q.id)}
                       >
@@ -2132,7 +2133,7 @@ function StudentDashboard({ user, onLogout }) {
   };
 
   return (
-    <div className="dash-wrap">
+    <div className="dash-wrap" role="main">
       {/* Top Navigation Header */}
       <header className="top-nav">
         <div className="nav-left">
