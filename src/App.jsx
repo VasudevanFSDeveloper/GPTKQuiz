@@ -1132,13 +1132,13 @@ function TeacherDashboard({ user, onLogout }) {
                     {editQuiz.questions.length > 1 && (
                       <button
                         type="button"
-                        style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 12 }}
+                        style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 600, padding: 0 }}
                         onClick={() => {
                           const updated = editQuiz.questions.filter((_, idx) => idx !== qIndex);
                           setEditQuiz({ ...editQuiz, questions: updated });
                         }}
                       >
-                        Remove
+                        <TrashIcon/> Remove
                       </button>
                     )}
                   </div>
