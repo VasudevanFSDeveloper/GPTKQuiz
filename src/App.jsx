@@ -675,9 +675,9 @@ function TeacherDashboard({ user, onLogout }) {
         </div>
 
         <div className="nav-right">
-          <div className="user-tag">
-            <span>Lecturer:</span> <strong style={{ color: '#fff' }}>{user.name}</strong>
-          </div>
+          <span className="badge-teacher">
+            Lecturer: <strong style={{ color: '#fff' }}>{user.name}</strong>
+          </span>
           <button className="btn-logout" onClick={onLogout} type="button">
             <LogoutIcon/> Logout
           </button>
@@ -1253,7 +1253,23 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
   const [timeLeft, setTimeLeft] = useState(quiz.durationMinutes * 60);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [scoreResult, setScoreResult] = useState(null);
+  const [displayScore, setDisplayScore] = useState(0);
   const [qrModal, setQrModal] = useState(null);
+
+  // Animate score count-up when result arrives
+  useEffect(() => {
+    if (!scoreResult) return;
+    const target = scoreResult.score;
+    if (target === 0) { setDisplayScore(0); return; }
+    let current = 0;
+    const step = Math.max(1, Math.floor(target / 20));
+    const interval = setInterval(() => {
+      current = Math.min(current + step, target);
+      setDisplayScore(current);
+      if (current >= target) clearInterval(interval);
+    }, 60);
+    return () => clearInterval(interval);
+  }, [scoreResult]);
 
   // Anti-cheat & Pre-start
   const [preStartTimer, setPreStartTimer] = useState(10);
@@ -1429,33 +1445,20 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
               <div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>{quiz.title}</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#fff', fontFamily: 'var(--font-body)' }}>{quiz.title}</div>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>{quiz.subject}</div>
               </div>
-              <div style={{
-                background: timeLeft < 60 ? 'rgba(239,68,68,0.2)' : 'rgba(56,189,248,0.12)',
-                border: `1.5px solid ${timeLeft < 60 ? '#f87171' : '#38bdf8'}`,
-                color: timeLeft < 60 ? '#f87171' : '#38bdf8',
-                padding: '6px 14px', borderRadius: 12, fontWeight: 800, fontSize: 14,
-                display: 'flex', alignItems: 'center', gap: 6
-              }}>
+              <div className={`timer-pill ${timeLeft < 30 ? 'danger' : timeLeft < 120 ? 'warning' : 'normal'}`}>
                 <ClockIcon/> {timeFormatted}
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+            <div style={{ display: 'flex', gap: 5, marginBottom: 20 }}>
               {quiz.questions.map((_, idx) => (
                 <div
                   key={idx}
                   onClick={() => setCurrentIdx(idx)}
-                  style={{
-                    flex: 1, height: 6, borderRadius: 3, cursor: 'pointer',
-                    background: selectedAnswers[idx] !== undefined
-                      ? '#38bdf8'
-                      : idx === currentIdx
-                        ? 'rgba(255,255,255,0.6)'
-                        : 'rgba(255,255,255,0.15)'
-                  }}
+                  className={`quiz-pip ${selectedAnswers[idx] !== undefined ? 'answered' : idx === currentIdx ? 'current' : ''}`}
                 />
               ))}
             </div>
@@ -1594,13 +1597,13 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
                   background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
                   borderRadius: 16, padding: '20px', maxWidth: 360, margin: '0 auto 20px'
                 }}>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 2, fontFamily: 'var(--font-body)', marginBottom: 4 }}>
                     Final Score
                   </div>
-                  <div style={{ fontSize: 36, fontWeight: 800, color: '#38bdf8', margin: '6px 0' }}>
-                    {scoreResult.score} / {scoreResult.totalQuestions}
+                  <div className="score-reveal" style={{ fontSize: 44, fontWeight: 700, fontFamily: 'var(--font-heading)', color: '#38bdf8', margin: '6px 0', letterSpacing: '0.04em' }}>
+                    {scoreResult.terminationReason === 'tab_switch' ? '0' : displayScore} <span style={{ fontSize: 24, opacity: 0.5 }}>/ {scoreResult.totalQuestions}</span>
                   </div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: scoreResult.percentage >= 60 ? '#86efac' : '#fca5a5' }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-body)', color: scoreResult.percentage >= 60 ? '#4ade80' : '#f87171' }}>
                     Accuracy: {scoreResult.percentage}%
                   </div>
                 </div>
@@ -1743,9 +1746,9 @@ function StudentDashboard({ user, onLogout }) {
         </div>
 
         <div className="nav-right">
-          <div className="user-tag" style={{ background: 'rgba(139,92,246,0.12)', borderColor: 'rgba(139,92,246,0.25)', color: '#c084fc' }}>
-            <span>Student:</span> <strong style={{ color: '#fff' }}>{user.name}</strong>
-          </div>
+          <span className="badge-student">
+            Student: <strong style={{ color: '#fff' }}>{user.name}</strong>
+          </span>
           <button className="btn-logout" onClick={onLogout} type="button">
             <LogoutIcon/> Logout
           </button>
@@ -2438,3 +2441,4 @@ function App() {
 
 
 export default App;
+
