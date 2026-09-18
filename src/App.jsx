@@ -17,9 +17,22 @@ const getTodayISODate = () => {
 
 /* SVG Icons */
 const BrandLogo = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-    <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+  <svg width="34" height="34" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="lg1" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stopColor="#38bdf8"/>
+        <stop offset="55%" stopColor="#818cf8"/>
+        <stop offset="100%" stopColor="#c084fc"/>
+      </linearGradient>
+    </defs>
+    <path d="M16 2 L28 9 L28 23 L16 30 L4 23 L4 9 Z" fill="rgba(56,189,248,0.07)" stroke="url(#lg1)" strokeWidth="1.5" strokeLinejoin="round"/>
+    <circle cx="15.5" cy="13" r="4" stroke="url(#lg1)" strokeWidth="1.6" fill="none"/>
+    <line x1="18.3" y1="15.8" x2="21.2" y2="18.8" stroke="url(#lg1)" strokeWidth="1.8" strokeLinecap="round"/>
+    <circle cx="15.5" cy="20" r="1.2" fill="url(#lg1)"/>
+    <circle cx="24" cy="9" r="1.1" fill="#38bdf8" opacity="0.8"/>
+    <line x1="23" y1="9" x2="20.5" y2="9" stroke="#38bdf8" strokeWidth="0.9" strokeLinecap="round" opacity="0.5"/>
+    <circle cx="8" cy="23" r="1.1" fill="#818cf8" opacity="0.8"/>
+    <line x1="9" y1="23" x2="11.5" y2="23" stroke="#818cf8" strokeWidth="0.9" strokeLinecap="round" opacity="0.5"/>
   </svg>
 );
 const CalendarIcon = () => (
