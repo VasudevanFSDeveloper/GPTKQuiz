@@ -137,45 +137,72 @@ const printReport = (reportTitle, meta, headers, rows) => {
   win.document.close();
 };
 
-/* WHATSAPP SHARE & QR SCANNER MODAL */
-function WhatsAppShareModal({ title, subtitle, messageText, onClose }) {
-  const [copied, setCopied] = useState(false);
-  const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(messageText)}`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(waUrl)}`;
+/* SHARE & QR SCANNER MODAL */
+function ShareModal({ title, subtitle, messageText, directLink, onClose }) {
+  const [copied, setCopied] = React.useState(false);
+  const waUrl = "https://api.whatsapp.com/send?text=${encodeURIComponent(messageText)}";
+  
+  const qrData = directLink ? directLink : waUrl;
+  const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(qrData)}";
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(messageText);
+    navigator.clipboard.writeText(directLink ? directLink : messageText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+  
+  const handleNativeShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: title,
+          text: messageText,
+          url: directLink
+        });
+      } catch (err) {
+        console.error("Share failed", err);
+      }
+    }
   };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-card" style={{ maxWidth: 460, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 18, fontWeight: 800, color: '#25D366' }}>
-            <WhatsAppIcon/> <span>{title || 'WhatsApp Result Scanner'}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 18, fontWeight: 800, color: directLink ? '#38bdf8' : '#25D366' }}>
+            {directLink ? <QrIcon/> : <WhatsAppIcon/>} <span>{title || 'Share'}</span>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: 18 }}>✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: 18 }}>?</button>
         </div>
 
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', margin: '0 0 16px', lineHeight: 1.4 }}>
-          {subtitle || 'Point your smartphone camera or WhatsApp QR scanner at the code below to instantly share your score report.'}
+          {subtitle || 'Point your smartphone camera to instantly scan.'}
         </p>
 
         <div className="qr-container">
-          <img src={qrUrl} alt="WhatsApp QR Code" />
+          <img src={qrUrl} alt="QR Code" />
         </div>
 
+        {directLink && (
+          <div style={{ background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: 10, borderRadius: 10, color: '#38bdf8', fontWeight: 700, fontSize: 13, margin: '0 auto 16px', wordBreak: 'break-all' }}>
+            {directLink}
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+          {directLink && !!navigator.share && (
+             <button type="button" className="btn-action btn-start" style={{ flex: 1, padding: '10px' }} onClick={handleNativeShare}>
+               Share...
+             </button>
+          )}
           <a
             href={waUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="btn-action btn-whatsapp"
-            style={{ textDecoration: 'none', flex: 1 }}
+            style={{ textDecoration: 'none', flex: 1, padding: '10px' }}
           >
-            <WhatsAppIcon/> Open in WhatsApp
+            <WhatsAppIcon/> {directLink ? 'WhatsApp' : 'Open in WhatsApp'}
           </a>
           <button
             type="button"
@@ -183,26 +210,27 @@ function WhatsAppShareModal({ title, subtitle, messageText, onClose }) {
             style={{ width: 'auto', padding: '10px 16px' }}
             onClick={handleCopy}
           >
-            {copied ? 'Copied!' : 'Copy Text'}
+            {copied ? 'Copied!' : (directLink ? 'Copy Link' : 'Copy Text')}
           </button>
         </div>
 
-        <div style={{
-          marginTop: 18,
-          padding: 12,
-          background: 'rgba(255,255,255,0.03)',
-          border: '1px solid rgba(255,255,255,0.07)',
-          borderRadius: 12,
-          fontSize: 12,
-          color: 'rgba(255,255,255,0.6)',
-          textAlign: 'left',
-          maxHeight: 120,
-          overflowY: 'auto',
-          whiteSpace: 'pre-wrap',
-          fontFamily: 'monospace'
-        }}>
-          {messageText}
-        </div>
+        {!directLink && (
+          <div style={{
+            marginTop: 18,
+            padding: 12,
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.07)',
+            borderRadius: 12,
+            fontSize: 12,
+            color: 'rgba(255,255,255,0.6)',
+            textAlign: 'left',
+            maxHeight: 120,
+            overflowY: 'auto',
+            whiteSpace: 'pre-wrap'
+          }}>
+            {messageText}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -548,6 +576,9 @@ function TeacherDashboard({ user, onLogout }) {
         }
       }
     }
+    if (!q.joinCode) {
+      q.joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    }
     q.lastEditedAt = Date.now();
     
     firebase.database().ref('quizzes/' + q.id).set(q).then(() => {
@@ -640,24 +671,38 @@ function TeacherDashboard({ user, onLogout }) {
     });
   };
 
-  const handleOpenStudentWhatsAppQR = (r) => {
-    let text = `*GPTKQuiz Official Scorecard*\n`;
-    text += `━━━━━━━━━━━━━━━━━━━━━\n`;
-    text += `*Student Name:* ${r.studentName}\n`;
-    text += `*Roll / Email:* ${r.studentEmail}\n`;
-    text += `*Quiz:* ${r.quizTitle}\n`;
-    text += `*Date Taken:* ${r.dateTaken}\n`;
-    text += `*Score:* ${r.score} / ${r.totalQuestions}\n`;
-    text += `*Accuracy:* ${r.percentage}%\n`;
-    text += `*Grade Status:* ${r.percentage >= 80 ? 'Distinction' : r.percentage >= 50 ? 'Passed' : 'Needs Review'}\n\n`;
-    text += `_Verified by Faculty: ${user.name}_`;
+    const handleOpenStudentWhatsAppQR = (r) => {
+    let text = *GPTKQuiz Official Scorecard*\n;
+    text += ?????????????????????\n;
+    text += *Student Name:* \n;
+    text += *Roll / Email:* \n;
+    text += *Quiz:* \n;
+    text += *Date Taken:* \n;
+    text += *Score:*  / \n;
+    text += *Accuracy:* %\n;
+    text += *Grade Status:* \n\n;
+    text += _Verified by Faculty: _;
 
     setQrModal({
-      title: `WhatsApp Result for ${r.studentName}`,
-      subtitle: `Scan with your phone or WhatsApp scanner to send ${r.studentName}'s result card to their WhatsApp.`,
+      title: WhatsApp Result for ,
+      subtitle: Scan with your phone or WhatsApp scanner to send 's result card to their WhatsApp.,
       text
     });
   };
+
+  const handleOpenShareQuiz = (q) => {
+    const url = ${window.location.origin}?join=;
+    let text = *Join Quiz: *\n;
+    text += ?????????????????????\n;
+    text += *Join Code:* \n;
+    text += *Direct Link:* \n;
+    setQrModal({
+      title: 'Share Quiz Invite',
+      subtitle: 'Send the join code or direct link to students to start the test.',
+      text,
+      directLink: url
+    });
+  };;
 
   return (
     <div className="dash-wrap">
@@ -799,14 +844,21 @@ function TeacherDashboard({ user, onLogout }) {
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                      <button
-                        className="btn-action btn-secondary"
-                        style={{ flex: 1, padding: '8px' }}
-                        onClick={() => handleOpenEdit(q)}
-                      >
-                        <EditIcon/> Edit
-                      </button>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                        <button
+                          className="btn-action btn-secondary"
+                          style={{ flex: 1, padding: '8px' }}
+                          onClick={() => handleOpenShareQuiz(q)}
+                        >
+                          <WhatsAppIcon/> Share
+                        </button>
+                        <button
+                          className="btn-action btn-secondary"
+                          style={{ flex: 1, padding: '8px' }}
+                          onClick={() => handleOpenEdit(q)}
+                        >
+                          <EditIcon/> Edit
+                        </button>
                       <button
                         className="btn-action btn-danger"
                         style={{ width: 'auto', padding: '8px 12px' }}
@@ -876,7 +928,35 @@ function TeacherDashboard({ user, onLogout }) {
                 onChange={e => setSearchStudent(e.target.value)}
               />
             </div>
-          </div>
+          </div>          {/* Visual Analytics */}
+          {filterQuizId !== 'all' && filteredResults.length > 0 && (() => {
+            const total = filteredResults.length;
+            const avg = Math.round(filteredResults.reduce((a, b) => a + b.percentage, 0) / total);
+            const passed = filteredResults.filter(r => r.percentage >= 50).length;
+            const passRate = Math.round((passed / total) * 100);
+            return (
+              <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 200, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: 16, padding: 20 }}>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, fontWeight: 700 }}>Total Attempts</div>
+                  <div className="font-orbitron" style={{ fontSize: 32, fontWeight: 700, color: '#fff' }}>{total}</div>
+                </div>
+                <div style={{ flex: 1, minWidth: 200, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: 16, padding: 20 }}>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, fontWeight: 700 }}>Average Score</div>
+                  <div className="font-orbitron" style={{ fontSize: 32, fontWeight: 700, color: '#38bdf8' }}>{avg}%</div>
+                  <div style={{ height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, marginTop: 12, overflow: 'hidden' }}>
+                    <div style={{ width: avg + '%', height: '100%', background: '#38bdf8' }} />
+                  </div>
+                </div>
+                <div style={{ flex: 1, minWidth: 200, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: 16, padding: 20 }}>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, fontWeight: 700 }}>Pass Rate (>50%)</div>
+                  <div className="font-orbitron" style={{ fontSize: 32, fontWeight: 700, color: passRate >= 50 ? '#4ade80' : '#f87171' }}>{passRate}%</div>
+                  <div style={{ height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, marginTop: 12, overflow: 'hidden' }}>
+                    <div style={{ width: passRate + '%', height: '100%', background: passRate >= 50 ? '#4ade80' : '#f87171' }} />
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Table */}
           {filteredResults.length === 0 ? (
@@ -1235,10 +1315,11 @@ function TeacherDashboard({ user, onLogout }) {
 
       {/* WhatsApp Share QR Modal */}
       {qrModal && (
-        <WhatsAppShareModal
+        <ShareModal
           title={qrModal.title}
           subtitle={qrModal.subtitle}
           messageText={qrModal.text}
+          directLink={qrModal.directLink}
           onClose={() => setQrModal(null)}
         />
       )}
@@ -1256,9 +1337,23 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
   const [displayScore, setDisplayScore] = useState(0);
   const [qrModal, setQrModal] = useState(null);
 
-  // Animate score count-up when result arrives
+    const [leaderboard, setLeaderboard] = useState([]);
+
+  // Animate score count-up when result arrives and fetch leaderboard
   useEffect(() => {
     if (!scoreResult) return;
+
+    firebase.database().ref('results').orderByChild('quizId').equalTo(quiz.id).once('value').then(snapshot => {
+      if (snapshot.exists()) {
+        const arr = [];
+        snapshot.forEach(child => {
+          arr.push(child.val());
+        });
+        arr.sort((a, b) => b.score - a.score || b.percentage - a.percentage);
+        setLeaderboard(arr.slice(0, 3));
+      }
+    });
+
     const target = scoreResult.score;
     if (target === 0) { setDisplayScore(0); return; }
     let current = 0;
@@ -1608,7 +1703,7 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
                   </div>
                 </div>
     
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginBottom: 12 }}>
+                                <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginBottom: 12 }}>
                   <button
                     type="button"
                     className="btn-action btn-secondary"
@@ -1628,6 +1723,29 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
                     Return to Dashboard
                   </button>
                 </div>
+
+                {/* Class Leaderboard (Post-Quiz Gamification) */}
+                {leaderboard.length > 0 && (
+                  <div style={{ marginTop: 30, background: 'rgba(255,255,255,0.02)', padding: 16, borderRadius: 16, border: '1px solid var(--border-color)', maxWidth: 360, margin: '30px auto 0' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12, color: '#f59e0b' }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                      <span style={{ fontSize: 14, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>Top 3 Class Leaders</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {leaderboard.map((lb, i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: i === 0 ? 'rgba(245, 158, 11, 0.1)' : 'rgba(255,255,255,0.03)', border: 1px solid , borderRadius: 10 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 24, height: 24, borderRadius: '50%', background: i === 0 ? '#f59e0b' : i === 1 ? '#94a3b8' : i === 2 ? '#b45309' : 'rgba(255,255,255,0.1)', color: i < 3 ? '#000' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800 }}>{i + 1}</div>
+                            <div style={{ fontSize: 13.5, fontWeight: 700, color: i === 0 ? '#fbbf24' : '#fff' }}>{lb.studentName}</div>
+                          </div>
+                          <div className="font-orbitron" style={{ fontSize: 15, fontWeight: 700, color: '#38bdf8' }}>
+                            {lb.score}<span style={{ fontSize: 11, opacity: 0.6 }}>/{lb.totalQuestions}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -1635,10 +1753,11 @@ function StudentQuizRunner({ quiz, studentUser, onClose, onFinish }) {
 
         {/* WhatsApp QR Modal */}
         {qrModal && (
-          <WhatsAppShareModal
+          <ShareModal
             title={qrModal.title}
             subtitle={qrModal.subtitle}
             messageText={qrModal.text}
+          directLink={qrModal.directLink}
             onClose={() => setQrModal(null)}
           />
         )}
@@ -1653,9 +1772,35 @@ function StudentDashboard({ user, onLogout }) {
   const [results, setResults] = useState([]);
   const [activeQuiz, setActiveQuiz] = useState(null);
   const [qrModal, setQrModal] = useState(null);
+  
+  const [joinCodeInput, setJoinCodeInput] = useState('');
+  const [joinError, setJoinError] = useState('');
 
   const todayStr = getTodayDateString();
   const todayISO = getTodayISODate();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('join');
+    if (code && quizzes.length > 0) {
+      const target = quizzes.find(q => q.joinCode && q.joinCode.toUpperCase() === code.toUpperCase());
+      if (target) {
+        setActiveQuiz(target);
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, [quizzes]);
+
+  const handleJoinSubmit = () => {
+    if(!joinCodeInput.trim()) return;
+    const target = quizzes.find(q => q.joinCode && q.joinCode.toUpperCase() === joinCodeInput.trim().toUpperCase());
+    if(target) {
+      setActiveQuiz(target);
+      setJoinError('');
+    } else {
+      setJoinError('Invalid or inactive Join Code.');
+    }
+  };
 
   useEffect(() => {
     const qRef = firebase.database().ref('quizzes');
@@ -1754,6 +1899,32 @@ function StudentDashboard({ user, onLogout }) {
           </button>
         </div>
       </header>
+
+            {/* Join Code Section */}
+      <section className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 280 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: '#fff', marginBottom: 6 }}>Have a Join Code?</div>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Enter the 6-character code provided by your teacher to instantly access a specific examination.</div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, flex: 1, minWidth: 280 }}>
+          <input
+            className="input font-orbitron"
+            style={{ flex: 1, fontSize: 18, letterSpacing: 2, textTransform: 'uppercase' }}
+            placeholder="e.g. A7X92P"
+            value={joinCodeInput}
+            onChange={(e) => setJoinCodeInput(e.target.value)}
+            maxLength={6}
+          />
+          <button
+            className="btn-action btn-start"
+            style={{ width: 'auto', padding: '10px 24px' }}
+            onClick={handleJoinSubmit}
+          >
+            Join Quiz
+          </button>
+        </div>
+        {joinError && <div style={{ width: '100%', color: '#f87171', fontSize: 13, fontWeight: 700, marginTop: 4 }}>{joinError}</div>}
+      </section>
 
       {/* 1. Live & Today's Examination Sets */}
       <section className="glass-card">
@@ -1947,10 +2118,11 @@ function StudentDashboard({ user, onLogout }) {
 
       {/* WhatsApp QR Modal */}
       {qrModal && (
-        <WhatsAppShareModal
+        <ShareModal
           title={qrModal.title}
           subtitle={qrModal.subtitle}
           messageText={qrModal.text}
+          directLink={qrModal.directLink}
           onClose={() => setQrModal(null)}
         />
       )}
@@ -2441,4 +2613,10 @@ function App() {
 
 
 export default App;
+
+
+
+
+
+
 
